@@ -21,6 +21,32 @@ This folder contains the full POC proposal. Read in the order below.
 A companion **one-page brief** for circulation is at
 [`one-pager.md`](./one-pager.md).
 
+### Printable Word document
+
+A formal, print-ready Microsoft Word version that consolidates the full proposal
+(cover page, table of contents, formatted tables, and professional diagrams) is
+provided for client distribution:
+
+- **[`Atlas-Unified-Knowledge-Platform-POC.docx`](./Atlas-Unified-Knowledge-Platform-POC.docx)**
+
+> When first opened in Microsoft Word, accept the prompt to update fields (or
+> press `Ctrl+A` then `F9`) so the table of contents and page numbers populate.
+
+#### Rebuilding the Word document
+
+The `.docx` and its diagrams are generated from source so they stay easy to
+update:
+
+```bash
+pip install python-docx matplotlib
+python docs/poc/build/render_diagrams.py   # renders PNG diagrams -> docs/poc/assets/
+python docs/poc/build/build_docx.py        # builds the .docx
+```
+
+- `build/render_diagrams.py` — renders the architecture/flow diagrams to
+  print-ready PNGs (no system dependencies).
+- `build/build_docx.py` — assembles the formatted Word document.
+
 ---
 
 ## The idea in one sentence
