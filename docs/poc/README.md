@@ -21,6 +21,25 @@ This folder contains the full POC proposal. Read in the order below.
 A companion **one-page brief** for circulation is at
 [`one-pager.md`](./one-pager.md).
 
+### Client-facing PDF (user journey)
+
+A print-ready **PDF for client presentation** that explains the website concept
+from the user's point of view — with webpage illustrations and step-by-step
+instructions in clear, formal English:
+
+- **[`Atlas-Unified-Knowledge-Platform-Client-POC.pdf`](./Atlas-Unified-Knowledge-Platform-Client-POC.pdf)**
+
+#### Rebuilding the client PDF
+
+```bash
+pip install matplotlib reportlab pillow
+python docs/poc/build/render_ui_mockups.py   # renders UI screenshots -> docs/poc/assets/ui/
+python docs/poc/build/build_client_pdf.py    # builds the PDF
+```
+
+- `build/render_ui_mockups.py` — renders the website screen mockups used in the PDF.
+- `build/build_client_pdf.py` — assembles the client-facing user-journey document.
+
 ### Printable Word document
 
 A formal, print-ready Microsoft Word version that consolidates the full proposal
