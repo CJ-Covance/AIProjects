@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --atlas-navy: #0c2340;
+  --atlas-blue: #1e4d8c;
+  --atlas-teal: #0d9488;
+  --atlas-light: #e8f4f8;
+  --atlas-accent: #38bdf8;
+  --card-bg: #ffffff;
+  --border: #e2e8f0;
+  --muted: #64748b;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+@layer components {
+  .atlas-card {
+    @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  .atlas-btn-primary {
+    @apply rounded-lg bg-atlas-navy px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-atlas-blue disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .atlas-btn-secondary {
+    @apply rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50;
+  }
+
+  .atlas-input {
+    @apply w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none transition-colors focus:border-atlas-blue focus:ring-2 focus:ring-atlas-blue/20;
+  }
+
+  .atlas-select {
+    @apply rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-atlas-blue focus:ring-2 focus:ring-atlas-blue/20;
+  }
+}
+
+.prose-atlas h1,
+.prose-atlas h2,
+.prose-atlas h3 {
+  @apply font-semibold text-atlas-navy;
+}
+
+.prose-atlas p {
+  @apply mb-3 leading-relaxed text-slate-700;
+}
+
+.citation-marker {
+  @apply inline-flex h-5 min-w-[1.25rem] cursor-pointer items-center justify-center rounded bg-atlas-teal/15 px-1 text-xs font-semibold text-atlas-teal transition-colors hover:bg-atlas-teal/30;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out;
+}
