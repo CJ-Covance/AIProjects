@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import List
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -22,10 +24,10 @@ def search(payload: SearchRequest, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/api/hierarchy", response_model=list[HierarchyNode])
+@router.get("/api/hierarchy", response_model=List[HierarchyNode])
 def get_hierarchy(db: Session = Depends(get_db)):
     sources = db.query(Source).order_by(Source.name).all()
-    result: list[HierarchyNode] = []
+    result: List[HierarchyNode] = []
     for source in sources:
         source_node = HierarchyNode(
             id=source.id,

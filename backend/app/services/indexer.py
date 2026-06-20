@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Dict, List, Optional
+
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -7,12 +9,14 @@ from app.models import Chunk, Domain, Project, Source, WebPage
 from app.services.embeddings import embed_texts, serialize_embedding
 
 
-def chunk_text(text: str, chunk_size: int | None = None, overlap: int | None = None) -> list[str]:
+def chunk_text(
+    text: str, chunk_size: Optional[int] = None, overlap: Optional[int] = None
+) -> List[str]:
     size = chunk_size or settings.chunk_size
     step = size - (overlap or settings.chunk_overlap)
     if not text.strip():
         return []
-    chunks: list[str] = []
+    chunks: List[str] = []
     start = 0
     while start < len(text):
         end = start + size
@@ -66,7 +70,7 @@ def delete_web_page_chunks(db: Session, web_page_id: str) -> None:
     db.commit()
 
 
-def reindex_all(db: Session) -> dict[str, int]:
+def reindex_all(db: Session) -> Dict[str, int]:
     pages = db.query(WebPage).all()
     total_chunks = 0
     for page in pages:

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -28,8 +30,8 @@ def _domain_out(domain: Domain, db: Session) -> DomainOut:
     )
 
 
-@router.get("", response_model=list[DomainOut])
-def list_domains(source_id: str | None = Query(None), db: Session = Depends(get_db)):
+@router.get("", response_model=List[DomainOut])
+def list_domains(source_id: Optional[str] = Query(None), db: Session = Depends(get_db)):
     query = db.query(Domain)
     if source_id:
         query = query.filter(Domain.source_id == source_id)

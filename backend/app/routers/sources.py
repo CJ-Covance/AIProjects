@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -30,7 +32,7 @@ def _source_out(source: Source, db: Session) -> SourceOut:
     )
 
 
-@router.get("", response_model=list[SourceOut])
+@router.get("", response_model=List[SourceOut])
 def list_sources(db: Session = Depends(get_db)):
     sources = db.query(Source).order_by(Source.name).all()
     return [_source_out(s, db) for s in sources]

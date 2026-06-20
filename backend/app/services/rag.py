@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import List, Optional, Tuple
+
 import numpy as np
 from sqlalchemy.orm import Session
 
@@ -25,7 +27,9 @@ STRICT RULES:
 7. Keep answers concise but complete."""
 
 
-def _build_filters(source_id: str | None, domain_id: str | None, project_id: str | None):
+def _build_filters(
+    source_id: Optional[str], domain_id: Optional[str], project_id: Optional[str]
+):
     filters = []
     if project_id:
         filters.append(Chunk.project_id == project_id)
@@ -39,11 +43,11 @@ def _build_filters(source_id: str | None, domain_id: str | None, project_id: str
 def retrieve_chunks(
     db: Session,
     question: str,
-    source_id: str | None = None,
-    domain_id: str | None = None,
-    project_id: str | None = None,
-    top_k: int | None = None,
-) -> list[tuple[Chunk, float, WebPage, Project, Domain, Source]]:
+    source_id: Optional[str] = None,
+    domain_id: Optional[str] = None,
+    project_id: Optional[str] = None,
+    top_k: Optional[int] = None,
+) -> List[Tuple[Chunk, float, WebPage, Project, Domain, Source]]:
     k = top_k or settings.top_k_chunks
     query = db.query(Chunk)
     for f in _build_filters(source_id, domain_id, project_id):
@@ -59,7 +63,7 @@ def retrieve_chunks(
     scores = cosine_similarity(query_vec, matrix)
 
     ranked_indices = np.argsort(scores)[::-1][:k]
-    results: list[tuple[Chunk, float, WebPage, Project, Domain, Source]] = []
+    results: List[Tuple[Chunk, float, WebPage, Project, Domain, Source]] = []
     for idx in ranked_indices:
         chunk = chunks[int(idx)]
         score = float(scores[int(idx)])
@@ -79,9 +83,9 @@ def retrieve_chunks(
 def generate_answer(
     db: Session,
     question: str,
-    source_id: str | None = None,
-    domain_id: str | None = None,
-    project_id: str | None = None,
+    source_id: Optional[str] = None,
+    domain_id: Optional[str] = None,
+    project_id: Optional[str] = None,
 ) -> SearchResponse:
     retrieved = retrieve_chunks(db, question, source_id, domain_id, project_id)
 
@@ -93,8 +97,8 @@ def generate_answer(
             found_relevant=False,
         )
 
-    context_parts: list[str] = []
-    citations: list[Citation] = []
+    context_parts: List[str] = []
+    citations: List[Citation] = []
     for i, (chunk, score, page, project, domain, source) in enumerate(retrieved, start=1):
         context_parts.append(
             f"[{i}] Title: {page.title}\n"

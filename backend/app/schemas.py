@@ -1,13 +1,12 @@
-from __future__ import annotations
-
 from datetime import datetime
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
 
 class SourceBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
-    description: str | None = None
+    description: Optional[str] = None
 
 
 class SourceCreate(SourceBase):
@@ -15,8 +14,8 @@ class SourceCreate(SourceBase):
 
 
 class SourceUpdate(BaseModel):
-    name: str | None = Field(None, min_length=1, max_length=255)
-    description: str | None = None
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
 
 
 class SourceOut(SourceBase):
@@ -31,7 +30,7 @@ class SourceOut(SourceBase):
 
 class DomainBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
-    description: str | None = None
+    description: Optional[str] = None
 
 
 class DomainCreate(DomainBase):
@@ -39,8 +38,8 @@ class DomainCreate(DomainBase):
 
 
 class DomainUpdate(BaseModel):
-    name: str | None = Field(None, min_length=1, max_length=255)
-    description: str | None = None
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
 
 
 class DomainOut(DomainBase):
@@ -56,7 +55,7 @@ class DomainOut(DomainBase):
 
 class ProjectBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
-    description: str | None = None
+    description: Optional[str] = None
 
 
 class ProjectCreate(ProjectBase):
@@ -64,8 +63,8 @@ class ProjectCreate(ProjectBase):
 
 
 class ProjectUpdate(BaseModel):
-    name: str | None = Field(None, min_length=1, max_length=255)
-    description: str | None = None
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
 
 
 class ProjectOut(ProjectBase):
@@ -81,7 +80,7 @@ class ProjectOut(ProjectBase):
 class WebPageBase(BaseModel):
     title: str = Field(..., min_length=1, max_length=500)
     content: str = ""
-    url: str | None = None
+    url: Optional[str] = None
 
 
 class WebPageCreate(WebPageBase):
@@ -89,9 +88,9 @@ class WebPageCreate(WebPageBase):
 
 
 class WebPageUpdate(BaseModel):
-    title: str | None = Field(None, min_length=1, max_length=500)
-    content: str | None = None
-    url: str | None = None
+    title: Optional[str] = Field(None, min_length=1, max_length=500)
+    content: Optional[str] = None
+    url: Optional[str] = None
 
 
 class WebPageOut(WebPageBase):
@@ -108,23 +107,23 @@ class HierarchyNode(BaseModel):
     id: str
     name: str
     type: str
-    description: str | None = None
+    description: Optional[str] = None
     page_count: int = 0
-    children: list["HierarchyNode"] = []
+    children: List["HierarchyNode"] = []
 
 
 class SearchRequest(BaseModel):
     question: str = Field(..., min_length=1)
-    source_id: str | None = None
-    domain_id: str | None = None
-    project_id: str | None = None
+    source_id: Optional[str] = None
+    domain_id: Optional[str] = None
+    project_id: Optional[str] = None
 
 
 class Citation(BaseModel):
     index: int
     web_page_id: str
     title: str
-    url: str | None
+    url: Optional[str]
     snippet: str
     source_name: str
     domain_name: str
@@ -134,6 +133,6 @@ class Citation(BaseModel):
 
 class SearchResponse(BaseModel):
     answer: str
-    citations: list[Citation]
+    citations: List[Citation]
     confidence: str
     found_relevant: bool

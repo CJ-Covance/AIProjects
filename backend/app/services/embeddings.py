@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import List, Optional
 
 import numpy as np
 from openai import OpenAI
@@ -8,13 +9,13 @@ from openai import OpenAI
 from app.config import settings
 
 
-def get_openai_client() -> OpenAI | None:
+def get_openai_client() -> Optional[OpenAI]:
     if not settings.openai_api_key:
         return None
     return OpenAI(api_key=settings.openai_api_key)
 
 
-def embed_texts(texts: list[str]) -> list[list[float]]:
+def embed_texts(texts: List[str]) -> List[List[float]]:
     client = get_openai_client()
     if not client:
         raise ValueError(
@@ -24,7 +25,7 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     return [item.embedding for item in response.data]
 
 
-def serialize_embedding(vector: list[float]) -> str:
+def serialize_embedding(vector: List[float]) -> str:
     return json.dumps(vector)
 
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -25,8 +27,8 @@ def _page_out(page: WebPage, db: Session) -> WebPageOut:
     )
 
 
-@router.get("", response_model=list[WebPageOut])
-def list_pages(project_id: str | None = Query(None), db: Session = Depends(get_db)):
+@router.get("", response_model=List[WebPageOut])
+def list_pages(project_id: Optional[str] = Query(None), db: Session = Depends(get_db)):
     query = db.query(WebPage)
     if project_id:
         query = query.filter(WebPage.project_id == project_id)
