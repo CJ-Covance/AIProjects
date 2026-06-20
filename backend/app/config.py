@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     openai_embedding_model: str = "text-embedding-3-small"
     openai_chat_model: str = "gpt-4o-mini"
     database_url: str = "sqlite:///./atlas.db"
+    knowledge_base_root: str = "knowledge_base"
     chunk_size: int = 800
     chunk_overlap: int = 150
     top_k_chunks: int = 8

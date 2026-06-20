@@ -153,6 +153,14 @@ export default function HomePage() {
 
       {result && (
         <div className="mt-8 space-y-6">
+          {(result.folder_paths.length > 0 || result.files_synced > 0) && (
+            <p className="text-xs text-slate-500">
+              Searched {result.files_synced} file(s) from{" "}
+              {result.folder_paths.length} folder path
+              {result.folder_paths.length !== 1 ? "s" : ""}
+              {result.folder_paths[0] ? `: ${result.folder_paths[0]}` : ""}
+            </p>
+          )}
           <AnswerDisplay
             answer={result.answer}
             citations={result.citations}

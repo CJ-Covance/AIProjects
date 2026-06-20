@@ -74,7 +74,31 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### Docker
+### Folder-based knowledge (PDF / HTML)
+
+Atlas maps each Source → Domain → Project to a folder on disk under `backend/knowledge_base/`:
+
+```
+backend/knowledge_base/
+  Clinical_Operations_Wiki/          ← Source folder
+    Clinical_Trials/               ← Domain folder
+      Project_Alpha/               ← Project folder
+        charter.pdf
+        policy.html
+```
+
+1. Set optional **Folder name** when creating Sources, Domains, and Projects in **Manage** (defaults to the entity name).
+2. Place PDF, HTML, HTM, MD, or TXT files in the project folder.
+3. Click **Sync folder from disk** or **Upload file** on the Manage page, or simply **Ask** a question — search auto-syncs files before answering.
+
+Supported file types: `.pdf`, `.html`, `.htm`, `.md`, `.txt`
+
+Configure the root path in `backend/.env`:
+
+```env
+KNOWLEDGE_BASE_ROOT=knowledge_base
+```
+
 
 ```bash
 export OPENAI_API_KEY=sk-...

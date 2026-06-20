@@ -7,6 +7,8 @@ venv/
 backend/.env
 backend/atlas.db
 backend/*.db
+backend/knowledge_base/*
+!backend/knowledge_base/.gitkeep
 
 # Node
 node_modules/

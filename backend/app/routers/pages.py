@@ -21,6 +21,7 @@ def _page_out(page: WebPage, db: Session) -> WebPageOut:
         title=page.title,
         content=page.content,
         url=page.url,
+        source_file_path=page.source_file_path,
         created_at=page.created_at,
         updated_at=page.updated_at,
         chunk_count=chunk_count,

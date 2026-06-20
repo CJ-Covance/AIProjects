@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Domain, Project, Source, WebPage
 from app.schemas import DomainCreate, DomainOut, DomainUpdate
+from app.services.folders import ensure_folder, resolve_domain_path, resolve_source_path
 
 router = APIRouter(prefix="/api/domains", tags=["domains"])
 
@@ -18,15 +19,18 @@ def _domain_out(domain: Domain, db: Session) -> DomainOut:
     page_count = 0
     if project_ids:
         page_count = db.query(WebPage).filter(WebPage.project_id.in_(project_ids)).count()
+    resolved = resolve_domain_path(db, domain.id)
     return DomainOut(
         id=domain.id,
         source_id=domain.source_id,
         name=domain.name,
         description=domain.description,
+        folder_path=domain.folder_path,
         created_at=domain.created_at,
         updated_at=domain.updated_at,
         project_count=len(projects),
         page_count=page_count,
+        resolved_folder_path=str(resolved) if resolved else None,
     )
 
 
@@ -56,10 +60,17 @@ def create_domain(payload: DomainCreate, db: Session = Depends(get_db)):
         source_id=payload.source_id,
         name=payload.name,
         description=payload.description,
+        folder_path=payload.folder_path,
     )
     db.add(domain)
     db.commit()
     db.refresh(domain)
+    source_path = resolve_source_path(db, source.id)
+    if source_path:
+        ensure_folder(source_path)
+    path = resolve_domain_path(db, domain.id)
+    if path:
+        ensure_folder(path)
     return _domain_out(domain, db)
 
 
@@ -72,8 +83,13 @@ def update_domain(domain_id: str, payload: DomainUpdate, db: Session = Depends(g
         domain.name = payload.name
     if payload.description is not None:
         domain.description = payload.description
+    if payload.folder_path is not None:
+        domain.folder_path = payload.folder_path
     db.commit()
     db.refresh(domain)
+    path = resolve_domain_path(db, domain.id)
+    if path:
+        ensure_folder(path)
     return _domain_out(domain, db)
 
 

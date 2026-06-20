@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 class SourceBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
+    folder_path: Optional[str] = Field(None, max_length=500)
 
 
 class SourceCreate(SourceBase):
@@ -16,6 +17,7 @@ class SourceCreate(SourceBase):
 class SourceUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
+    folder_path: Optional[str] = Field(None, max_length=500)
 
 
 class SourceOut(SourceBase):
@@ -24,6 +26,7 @@ class SourceOut(SourceBase):
     updated_at: datetime
     domain_count: int = 0
     page_count: int = 0
+    resolved_folder_path: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -31,6 +34,7 @@ class SourceOut(SourceBase):
 class DomainBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
+    folder_path: Optional[str] = Field(None, max_length=500)
 
 
 class DomainCreate(DomainBase):
@@ -40,6 +44,7 @@ class DomainCreate(DomainBase):
 class DomainUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
+    folder_path: Optional[str] = Field(None, max_length=500)
 
 
 class DomainOut(DomainBase):
@@ -49,6 +54,7 @@ class DomainOut(DomainBase):
     updated_at: datetime
     project_count: int = 0
     page_count: int = 0
+    resolved_folder_path: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -56,6 +62,7 @@ class DomainOut(DomainBase):
 class ProjectBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
+    folder_path: Optional[str] = Field(None, max_length=500)
 
 
 class ProjectCreate(ProjectBase):
@@ -65,6 +72,7 @@ class ProjectCreate(ProjectBase):
 class ProjectUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
+    folder_path: Optional[str] = Field(None, max_length=500)
 
 
 class ProjectOut(ProjectBase):
@@ -73,6 +81,7 @@ class ProjectOut(ProjectBase):
     created_at: datetime
     updated_at: datetime
     page_count: int = 0
+    resolved_folder_path: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -96,6 +105,7 @@ class WebPageUpdate(BaseModel):
 class WebPageOut(WebPageBase):
     id: str
     project_id: str
+    source_file_path: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     chunk_count: int = 0
@@ -109,6 +119,8 @@ class HierarchyNode(BaseModel):
     type: str
     description: Optional[str] = None
     page_count: int = 0
+    folder_path: Optional[str] = None
+    resolved_folder_path: Optional[str] = None
     children: List["HierarchyNode"] = []
 
 
@@ -136,3 +148,27 @@ class SearchResponse(BaseModel):
     citations: List[Citation]
     confidence: str
     found_relevant: bool
+    folder_paths: List[str] = []
+    files_synced: int = 0
+
+
+class FolderSyncResponse(BaseModel):
+    project_id: str
+    folder_path: Optional[str]
+    files_found: int
+    results: List[str]
+    message: str
+
+
+class FileUploadResponse(BaseModel):
+    project_id: str
+    folder_path: str
+    filename: str
+    result: str
+
+
+class ScopeSyncSummary(BaseModel):
+    folder_paths: List[str]
+    projects_synced: int
+    files_found: int
+    details: List[Dict[str, object]]

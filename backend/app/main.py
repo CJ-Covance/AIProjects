@@ -7,12 +7,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import ENV_FILE, settings
 from app.database import Base, engine
+from app.migrate import run_migrations
 from app.routers import domains, pages, projects, search, sources
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    run_migrations()
     yield
 
 

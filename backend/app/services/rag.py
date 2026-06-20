@@ -14,6 +14,7 @@ from app.services.embeddings import (
     embed_texts,
     get_openai_client,
 )
+from app.services.folder_sync import sync_scope_from_disk
 
 SYSTEM_PROMPT = """You are Atlas, an enterprise knowledge assistant. Your role is to answer questions using ONLY the provided context passages from the organization's knowledge base.
 
@@ -87,6 +88,10 @@ def generate_answer(
     domain_id: Optional[str] = None,
     project_id: Optional[str] = None,
 ) -> SearchResponse:
+    sync_summary = sync_scope_from_disk(db, source_id, domain_id, project_id)
+    folder_paths = [str(p) for p in sync_summary.get("folder_paths", [])]
+    files_synced = int(sync_summary.get("files_found", 0))
+
     retrieved = retrieve_chunks(db, question, source_id, domain_id, project_id)
 
     if not retrieved:
@@ -95,6 +100,8 @@ def generate_answer(
             citations=[],
             confidence="none",
             found_relevant=False,
+            folder_paths=folder_paths,
+            files_synced=files_synced,
         )
 
     context_parts: List[str] = []
@@ -135,6 +142,8 @@ Answer the question using only the context above. Include inline citations [1], 
             citations=citations,
             confidence="none",
             found_relevant=False,
+            folder_paths=folder_paths,
+            files_synced=files_synced,
         )
 
     response = client.chat.completions.create(
@@ -174,4 +183,6 @@ Answer the question using only the context above. Include inline citations [1], 
         citations=citations if found_relevant else [],
         confidence=confidence,
         found_relevant=found_relevant,
+        folder_paths=folder_paths,
+        files_synced=files_synced,
     )
