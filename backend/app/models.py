@@ -1,7 +1,6 @@
-from __future__ import annotations
-
 import uuid
 from datetime import datetime, timezone
+from typing import List, Optional
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -22,13 +21,13 @@ class Source(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
     )
 
-    domains: Mapped[list["Domain"]] = relationship(
+    domains: Mapped[List["Domain"]] = relationship(
         back_populates="source", cascade="all, delete-orphan"
     )
 
@@ -39,14 +38,14 @@ class Domain(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
     source_id: Mapped[str] = mapped_column(String(36), ForeignKey("sources.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
     )
 
     source: Mapped["Source"] = relationship(back_populates="domains")
-    projects: Mapped[list["Project"]] = relationship(
+    projects: Mapped[List["Project"]] = relationship(
         back_populates="domain", cascade="all, delete-orphan"
     )
 
@@ -57,14 +56,14 @@ class Project(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
     domain_id: Mapped[str] = mapped_column(String(36), ForeignKey("domains.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
     )
 
     domain: Mapped["Domain"] = relationship(back_populates="projects")
-    web_pages: Mapped[list["WebPage"]] = relationship(
+    web_pages: Mapped[List["WebPage"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
 
@@ -76,14 +75,14 @@ class WebPage(Base):
     project_id: Mapped[str] = mapped_column(String(36), ForeignKey("projects.id"), nullable=False)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
     )
 
     project: Mapped["Project"] = relationship(back_populates="web_pages")
-    chunks: Mapped[list["Chunk"]] = relationship(
+    chunks: Mapped[List["Chunk"]] = relationship(
         back_populates="web_page", cascade="all, delete-orphan"
     )
 
