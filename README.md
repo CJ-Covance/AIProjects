@@ -56,6 +56,13 @@ python -m uvicorn app.main:app --reload --port 8000
 
 > **Python 3.9 note:** Use `python -m pip install -r requirements.txt` if `pip` points to a different Python version. The dependency set pins `numpy<2` because NumPy 2.x requires Python 3.10+.
 
+> **Windows note:** Dependencies use pre-built wheels only (no Visual C++ Build Tools required). If you previously failed on `greenlet`, run:
+> ```bash
+> python -m pip install --upgrade pip
+> python -m pip install greenlet==3.2.4 numpy==1.26.4
+> python -m pip install -r requirements.txt
+> ```
+
 ### 2. Frontend
 
 ```bash
