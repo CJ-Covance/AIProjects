@@ -8,12 +8,20 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Project, WebPage
 from app.schemas import WebPageCreate, WebPageOut, WebPageUpdate
+from app.services.activity_log import log_activity, log_exception
+from app.services.folders import resolve_project_path
 from app.services.indexer import delete_web_page_chunks, index_web_page
+from app.services.page_files import save_page_to_disk
 
 router = APIRouter(prefix="/api/pages", tags=["pages"])
 
 
-def _page_out(page: WebPage, db: Session) -> WebPageOut:
+def _page_out(
+    page: WebPage,
+    db: Session,
+    disk_path: Optional[str] = None,
+    index_warning: Optional[str] = None,
+) -> WebPageOut:
     chunk_count = len(page.chunks) if page.chunks else 0
     return WebPageOut(
         id=page.id,
@@ -22,10 +30,80 @@ def _page_out(page: WebPage, db: Session) -> WebPageOut:
         content=page.content,
         url=page.url,
         source_file_path=page.source_file_path,
+        disk_path=disk_path,
+        index_warning=index_warning,
         created_at=page.created_at,
         updated_at=page.updated_at,
         chunk_count=chunk_count,
     )
+
+
+def _persist_page(
+    db: Session,
+    page: WebPage,
+    save_to_disk: bool,
+    activity_label: str,
+) -> WebPageOut:
+    disk_path: Optional[str] = None
+    index_warning: Optional[str] = None
+
+    if save_to_disk:
+        try:
+            abs_path, rel_path = save_page_to_disk(db, page)
+            disk_path = abs_path
+            db.commit()
+            db.refresh(page)
+            log_activity(
+                "INFO",
+                activity_label,
+                f"Saved page content to disk: {abs_path}",
+                page="Manage",
+                endpoint="/api/pages",
+                entity_type="web_page",
+                entity_id=page.id,
+                details={"disk_path": abs_path, "relative_path": rel_path},
+                db=db,
+            )
+        except Exception as exc:
+            log_exception(
+                activity_label,
+                exc,
+                page="Manage",
+                endpoint="/api/pages",
+                entity_type="web_page",
+                entity_id=page.id,
+                details={"action": "save_to_disk"},
+                db=db,
+            )
+            index_warning = f"Could not save to disk: {exc}"
+
+    try:
+        index_web_page(db, page)
+        log_activity(
+            "INFO",
+            activity_label,
+            "Page indexed successfully",
+            page="Manage",
+            endpoint="/api/pages",
+            entity_type="web_page",
+            entity_id=page.id,
+            db=db,
+        )
+    except Exception as exc:
+        log_exception(
+            f"{activity_label} indexing",
+            exc,
+            page="Manage",
+            endpoint="/api/pages",
+            entity_type="web_page",
+            entity_id=page.id,
+            db=db,
+        )
+        warning = f"Page saved but indexing failed: {exc}"
+        index_warning = f"{index_warning}; {warning}" if index_warning else warning
+
+    db.refresh(page)
+    return _page_out(page, db, disk_path=disk_path, index_warning=index_warning)
 
 
 @router.get("", response_model=List[WebPageOut])
@@ -50,6 +128,24 @@ def create_page(payload: WebPageCreate, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == payload.project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+
+    folder = resolve_project_path(db, payload.project_id)
+    log_activity(
+        "INFO",
+        "Create web page",
+        f"Creating page '{payload.title}' for project {project.name}",
+        page="Manage",
+        endpoint="/api/pages",
+        entity_type="project",
+        entity_id=payload.project_id,
+        details={
+            "title": payload.title,
+            "project_folder": str(folder) if folder else None,
+            "save_to_disk": payload.save_to_disk,
+        },
+        db=db,
+    )
+
     page = WebPage(
         project_id=payload.project_id,
         title=payload.title,
@@ -59,12 +155,7 @@ def create_page(payload: WebPageCreate, db: Session = Depends(get_db)):
     db.add(page)
     db.commit()
     db.refresh(page)
-    try:
-        index_web_page(db, page)
-    except ValueError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    db.refresh(page)
-    return _page_out(page, db)
+    return _persist_page(db, page, payload.save_to_disk, "Create web page")
 
 
 @router.put("/{page_id}", response_model=WebPageOut)
@@ -80,12 +171,7 @@ def update_page(page_id: str, payload: WebPageUpdate, db: Session = Depends(get_
         page.url = payload.url
     db.commit()
     db.refresh(page)
-    try:
-        index_web_page(db, page)
-    except ValueError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    db.refresh(page)
-    return _page_out(page, db)
+    return _persist_page(db, page, payload.save_to_disk, "Update web page")
 
 
 @router.delete("/{page_id}", status_code=204)
@@ -96,3 +182,13 @@ def delete_page(page_id: str, db: Session = Depends(get_db)):
     delete_web_page_chunks(db, page_id)
     db.delete(page)
     db.commit()
+    log_activity(
+        "INFO",
+        "Delete web page",
+        f"Deleted page '{page.title}'",
+        page="Manage",
+        endpoint=f"/api/pages/{page_id}",
+        entity_type="web_page",
+        entity_id=page_id,
+        db=db,
+    )

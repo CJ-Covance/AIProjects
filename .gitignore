@@ -9,6 +9,7 @@ backend/atlas.db
 backend/*.db
 backend/knowledge_base/*
 !backend/knowledge_base/.gitkeep
+backend/logs/
 
 # Node
 node_modules/

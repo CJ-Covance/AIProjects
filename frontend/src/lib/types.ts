@@ -42,6 +42,8 @@ export interface WebPage {
   content: string;
   url: string | null;
   source_file_path: string | null;
+  disk_path: string | null;
+  index_warning: string | null;
   created_at: string;
   updated_at: string;
   chunk_count: number;
@@ -83,6 +85,26 @@ export interface SearchFilters {
   source_id?: string;
   domain_id?: string;
   project_id?: string;
+}
+
+export interface ActivityLog {
+  id: string;
+  level: string;
+  activity: string;
+  page: string | null;
+  message: string;
+  endpoint: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  details: string | null;
+  error_trace: string | null;
+  created_at: string;
+}
+
+export interface LogsResponse {
+  logs: ActivityLog[];
+  total: number;
+  file_tail: string;
 }
 
 export interface FolderSyncResponse {

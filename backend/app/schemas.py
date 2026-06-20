@@ -94,18 +94,22 @@ class WebPageBase(BaseModel):
 
 class WebPageCreate(WebPageBase):
     project_id: str
+    save_to_disk: bool = True
 
 
 class WebPageUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=500)
     content: Optional[str] = None
     url: Optional[str] = None
+    save_to_disk: bool = True
 
 
 class WebPageOut(WebPageBase):
     id: str
     project_id: str
     source_file_path: Optional[str] = None
+    disk_path: Optional[str] = None
+    index_warning: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     chunk_count: int = 0
@@ -172,3 +176,25 @@ class ScopeSyncSummary(BaseModel):
     projects_synced: int
     files_found: int
     details: List[Dict[str, object]]
+
+
+class ActivityLogOut(BaseModel):
+    id: str
+    level: str
+    activity: str
+    page: Optional[str] = None
+    message: str
+    endpoint: Optional[str] = None
+    entity_type: Optional[str] = None
+    entity_id: Optional[str] = None
+    details: Optional[str] = None
+    error_trace: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class LogsResponse(BaseModel):
+    logs: List[ActivityLogOut]
+    total: int
+    file_tail: str = ""

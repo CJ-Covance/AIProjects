@@ -16,6 +16,7 @@ interface FormState {
   folder_path: string;
   content: string;
   url: string;
+  save_to_disk: boolean;
 }
 
 const emptyForm = (type: EntityType, parentId?: string): FormState => ({
@@ -27,6 +28,7 @@ const emptyForm = (type: EntityType, parentId?: string): FormState => ({
   folder_path: "",
   content: "",
   url: "",
+  save_to_disk: true,
 });
 
 const PARENT_LABELS: Record<EntityType, string> = {
@@ -142,6 +144,7 @@ export default function ManagePage() {
     setSaving(true);
     setError(null);
     try {
+      let pageResult: WebPage | null = null;
       if (form.mode === "create") {
         switch (form.type) {
           case "source":
@@ -168,11 +171,12 @@ export default function ManagePage() {
             });
             break;
           case "page":
-            await api.createPage({
+            pageResult = await api.createPage({
               project_id: form.parentId!,
               title: form.name,
               content: form.content,
               url: form.url || undefined,
+              save_to_disk: form.save_to_disk,
             });
             break;
         }
@@ -200,19 +204,33 @@ export default function ManagePage() {
             });
             break;
           case "page":
-            await api.updatePage(form.id!, {
+            pageResult = await api.updatePage(form.id!, {
               title: form.name,
               content: form.content,
               url: form.url || undefined,
+              save_to_disk: form.save_to_disk,
             });
             break;
         }
       }
       setForm(null);
-      setInfo(null);
+      if (pageResult) {
+        if (pageResult.disk_path) {
+          setInfo(`Page saved to disk: ${pageResult.disk_path}`);
+        } else {
+          setInfo("Page saved to database.");
+        }
+        if (pageResult.index_warning) {
+          setError(pageResult.index_warning);
+        }
+      } else {
+        setInfo(null);
+      }
       await refreshAll();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      const msg = err instanceof Error ? err.message : "Save failed";
+      setError(msg);
+      setInfo("Check the Logs page for detailed error information.");
     } finally {
       setSaving(false);
     }
@@ -407,6 +425,7 @@ export default function ManagePage() {
               folder_path: ("folder_path" in item ? String(item.folder_path || "") : ""),
               content: "",
               url: "",
+              save_to_disk: true,
             })
           }
           onDelete={handleDelete}
@@ -433,6 +452,7 @@ export default function ManagePage() {
               folder_path: ("folder_path" in item ? String(item.folder_path || "") : ""),
               content: "",
               url: "",
+              save_to_disk: true,
             })
           }
           onDelete={handleDelete}
@@ -457,6 +477,7 @@ export default function ManagePage() {
               folder_path: ("folder_path" in item ? String(item.folder_path || "") : ""),
               content: "",
               url: "",
+              save_to_disk: true,
             })
           }
           onDelete={handleDelete}
@@ -466,7 +487,11 @@ export default function ManagePage() {
         />
         <EntityList
           title="Web Pages"
-          items={pages.map((p) => ({ ...p, name: p.title, resolved_folder_path: p.source_file_path }))}
+          items={pages.map((p) => ({
+            ...p,
+            name: p.title,
+            resolved_folder_path: p.disk_path || p.source_file_path,
+          }))}
           selected=""
           onSelect={() => {}}
           onAdd={() => openAddForm("page")}
@@ -481,6 +506,7 @@ export default function ManagePage() {
               folder_path: "",
               content: "content" in item ? String(item.content) : "",
               url: "url" in item && item.url ? String(item.url) : "",
+              save_to_disk: true,
             })
           }
           onDelete={handleDelete}
@@ -643,15 +669,30 @@ export default function ManagePage() {
                       placeholder="https://..."
                     />
                   </div>
+                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={form.save_to_disk}
+                      onChange={(e) => setForm({ ...form, save_to_disk: e.target.checked })}
+                    />
+                    Save content as .md file in the project folder on disk
+                  </label>
                   <div>
                     <label className="mb-1 block text-sm font-medium text-slate-700">Content</label>
                     <textarea
                       className="atlas-input min-h-[200px] font-mono text-xs"
                       value={form.content}
                       onChange={(e) => setForm({ ...form, content: e.target.value })}
-                      placeholder="Paste page content, or upload/sync files from the project folder..."
+                      placeholder="Paste page content, or use Upload file / Sync folder instead..."
                     />
                   </div>
+                  <p className="text-xs text-slate-400">
+                    Errors are recorded on the{" "}
+                    <a href="/logs" className="text-atlas-blue hover:underline">
+                      Logs
+                    </a>{" "}
+                    page. Backend must be running at {api.baseUrl}.
+                  </p>
                 </>
               )}
             </div>

@@ -93,6 +93,10 @@ backend/knowledge_base/
 
 Supported file types: `.pdf`, `.html`, `.htm`, `.md`, `.txt`
 
+### Activity logs
+
+Open **Logs** in the navigation bar (`/logs`) to view backend activity, API errors, page save details, and the `backend/logs/atlas.log` file tail. Use this to diagnose "failed to fetch" errors — usually the backend is not running or not reachable at `http://localhost:8000`.
+
 Configure the root path in `backend/.env`:
 
 ```env

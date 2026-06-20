@@ -104,3 +104,19 @@ class Chunk(Base):
     project_id: Mapped[str] = mapped_column(String(36), nullable=False)
 
     web_page: Mapped["WebPage"] = relationship(back_populates="chunks")
+
+
+class ActivityLog(Base):
+    __tablename__ = "activity_logs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    level: Mapped[str] = mapped_column(String(20), nullable=False)
+    activity: Mapped[str] = mapped_column(String(255), nullable=False)
+    page: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    endpoint: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    entity_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    entity_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    error_trace: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

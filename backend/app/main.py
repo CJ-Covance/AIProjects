@@ -7,8 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import ENV_FILE, settings
 from app.database import Base, engine
+from app.middleware.activity_logging import ActivityLoggingMiddleware, register_exception_handlers
 from app.migrate import run_migrations
-from app.routers import domains, pages, projects, search, sources
+from app.routers import domains, logs, pages, projects, search, sources
 
 
 @asynccontextmanager
@@ -26,6 +27,11 @@ app = FastAPI(
 )
 
 origins = [o.strip() for o in settings.cors_origins.split(",")]
+# Ensure common local dev origins work on Windows
+for extra in ("http://127.0.0.1:3000", "http://localhost:3000"):
+    if extra not in origins:
+        origins.append(extra)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -33,19 +39,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(ActivityLoggingMiddleware)
+register_exception_handlers(app)
 
 app.include_router(sources.router)
 app.include_router(domains.router)
 app.include_router(projects.router)
 app.include_router(pages.router)
 app.include_router(search.router)
+app.include_router(logs.router)
 
 
 @app.get("/api/health")
 def health():
+    from app.services.activity_log import LOG_FILE
+
     return {
         "status": "ok",
         "openai_configured": bool(settings.openai_api_key),
         "env_file": str(ENV_FILE),
         "env_file_exists": ENV_FILE.exists(),
+        "log_file": str(LOG_FILE),
+        "api_base_hint": "http://localhost:8000",
     }
