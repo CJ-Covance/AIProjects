@@ -1,5 +1,7 @@
 """Seed the database with sample knowledge base content for demonstration."""
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 

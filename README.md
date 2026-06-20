@@ -36,7 +36,7 @@ Source (Root)
 
 ### Prerequisites
 
-- Python 3.12+
+- Python 3.9+ (tested on 3.9.5 and 3.12)
 - Node.js 20+
 - OpenAI API key
 
@@ -51,8 +51,10 @@ cp .env.example .env
 # Edit .env and set OPENAI_API_KEY=sk-...
 
 python seed_data.py          # Load sample clinical-trial knowledge base
-uvicorn app.main:app --reload --port 8000
+python -m uvicorn app.main:app --reload --port 8000
 ```
+
+> **Python 3.9 note:** Use `python -m pip install -r requirements.txt` if `pip` points to a different Python version. The dependency set pins `numpy<2` because NumPy 2.x requires Python 3.10+.
 
 ### 2. Frontend
 
