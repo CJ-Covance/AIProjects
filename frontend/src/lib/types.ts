@@ -79,6 +79,9 @@ export interface SearchResponse {
   found_relevant: boolean;
   folder_paths: string[];
   files_synced: number;
+  pages_in_scope: number;
+  chunks_indexed: number;
+  index_warnings: string[];
 }
 
 export interface SearchFilters {

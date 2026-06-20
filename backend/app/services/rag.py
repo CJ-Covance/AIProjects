@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import List, Optional, Tuple
 
 import numpy as np
@@ -16,6 +17,7 @@ from app.services.embeddings import (
     get_openai_client,
 )
 from app.services.folder_sync import sync_scope_from_disk
+from app.services.scope import count_chunks_in_scope, ensure_indexed_for_scope, get_pages_in_scope
 
 SYSTEM_PROMPT = """You are Atlas, an enterprise knowledge assistant. Your role is to answer questions using ONLY the provided context passages from the organization's knowledge base.
 
@@ -33,11 +35,68 @@ SSL_HELP = (
     "and restart the backend. For development only, you may set OPENAI_SSL_VERIFY=false in backend/.env."
 )
 
+SIMILARITY_THRESHOLD = 0.15
+_STOP_WORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "and",
+        "or",
+        "but",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "by",
+        "from",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "what",
+        "which",
+        "who",
+        "whom",
+        "this",
+        "that",
+        "these",
+        "those",
+        "how",
+        "when",
+        "where",
+        "why",
+        "vs",
+        "versus",
+    }
+)
+
 
 def _error_response(
     message: str,
     folder_paths: Optional[List[str]] = None,
     files_synced: int = 0,
+    pages_in_scope: int = 0,
+    chunks_indexed: int = 0,
+    index_warnings: Optional[List[str]] = None,
 ) -> SearchResponse:
     return SearchResponse(
         answer=message,
@@ -46,6 +105,9 @@ def _error_response(
         found_relevant=False,
         folder_paths=folder_paths or [],
         files_synced=files_synced,
+        pages_in_scope=pages_in_scope,
+        chunks_indexed=chunks_indexed,
+        index_warnings=index_warnings or [],
     )
 
 
@@ -62,6 +124,66 @@ def _build_filters(
     return filters
 
 
+def _question_terms(question: str) -> List[str]:
+    terms = re.findall(r"[a-z0-9]+", question.lower())
+    return [t for t in terms if len(t) >= 2 and t not in _STOP_WORDS]
+
+
+def _load_chunk_context(
+    db: Session, chunk: Chunk
+) -> Optional[Tuple[Chunk, WebPage, Project, Domain, Source]]:
+    page = db.query(WebPage).filter(WebPage.id == chunk.web_page_id).first()
+    if not page:
+        return None
+    project = db.query(Project).filter(Project.id == chunk.project_id).first()
+    domain = db.query(Domain).filter(Domain.id == chunk.domain_id).first()
+    source = db.query(Source).filter(Source.id == chunk.source_id).first()
+    if project and domain and source:
+        return chunk, page, project, domain, source
+    return None
+
+
+def keyword_retrieve_chunks(
+    db: Session,
+    question: str,
+    source_id: Optional[str] = None,
+    domain_id: Optional[str] = None,
+    project_id: Optional[str] = None,
+    top_k: Optional[int] = None,
+) -> List[Tuple[Chunk, float, WebPage, Project, Domain, Source]]:
+    """Fallback retrieval using keyword overlap when embeddings are unavailable or weak."""
+    k = top_k or settings.top_k_chunks
+    terms = _question_terms(question)
+    if not terms:
+        return []
+
+    query = db.query(Chunk)
+    for f in _build_filters(source_id, domain_id, project_id):
+        query = query.filter(f)
+    chunks = query.all()
+    if not chunks:
+        return []
+
+    scored: List[Tuple[Chunk, float]] = []
+    for chunk in chunks:
+        content_lower = chunk.content.lower()
+        hits = sum(1 for term in terms if term in content_lower)
+        if hits == 0:
+            continue
+        # Favor chunks that match more query terms and longer overlap.
+        score = hits / len(terms)
+        scored.append((chunk, score))
+
+    scored.sort(key=lambda item: item[1], reverse=True)
+    results: List[Tuple[Chunk, float, WebPage, Project, Domain, Source]] = []
+    for chunk, score in scored[:k]:
+        ctx = _load_chunk_context(db, chunk)
+        if ctx:
+            c, page, project, domain, source = ctx
+            results.append((c, score, page, project, domain, source))
+    return results
+
+
 def retrieve_chunks(
     db: Session,
     question: str,
@@ -76,7 +198,7 @@ def retrieve_chunks(
         query = query.filter(f)
     chunks = query.all()
     if not chunks:
-        return []
+        return keyword_retrieve_chunks(db, question, source_id, domain_id, project_id, top_k)
 
     query_embedding = embed_texts([question])[0]
     query_vec = np.array(query_embedding, dtype=np.float32)
@@ -89,17 +211,48 @@ def retrieve_chunks(
     for idx in ranked_indices:
         chunk = chunks[int(idx)]
         score = float(scores[int(idx)])
-        if score < 0.3:
+        if score < SIMILARITY_THRESHOLD:
             continue
-        page = db.query(WebPage).filter(WebPage.id == chunk.web_page_id).first()
-        if not page:
-            continue
-        project = db.query(Project).filter(Project.id == chunk.project_id).first()
-        domain = db.query(Domain).filter(Domain.id == chunk.domain_id).first()
-        source = db.query(Source).filter(Source.id == chunk.source_id).first()
-        if project and domain and source:
-            results.append((chunk, score, page, project, domain, source))
-    return results
+        ctx = _load_chunk_context(db, chunk)
+        if ctx:
+            c, page, project, domain, source = ctx
+            results.append((c, score, page, project, domain, source))
+
+    if results:
+        return results
+
+    return keyword_retrieve_chunks(db, question, source_id, domain_id, project_id, top_k)
+
+
+def _empty_scope_message(
+    pages_in_scope: int,
+    chunks_indexed: int,
+    index_warnings: List[str],
+) -> str:
+    if pages_in_scope == 0:
+        return (
+            "I could not find sufficient information in the knowledge base to answer this question. "
+            "No web pages exist in the selected scope yet. "
+            "On the Manage page, create a Domain and Project under your Source, place files in the "
+            "source folder (e.g. knowledge_base/Cancer/cancer1.txt), then sync or ask again."
+        )
+
+    if chunks_indexed == 0:
+        warning_hint = ""
+        if index_warnings:
+            warning_hint = f" Indexing issues: {'; '.join(index_warnings[:3])}."
+        return (
+            "I could not find sufficient information in the knowledge base to answer this question. "
+            f"Found {pages_in_scope} page(s) in scope but none are indexed for search. "
+            "This usually means OpenAI embedding failed during sync — check the Logs page and "
+            f"ensure OPENAI_API_KEY is set in backend/.env.{warning_hint}"
+        )
+
+    return (
+        "I could not find sufficient information in the knowledge base to answer this question. "
+        f"Searched {chunks_indexed} indexed chunk(s) across {pages_in_scope} page(s) but none "
+        "matched your question closely enough. Try rephrasing or broadening your search terms."
+    )
 
 
 def generate_answer(
@@ -111,11 +264,21 @@ def generate_answer(
 ) -> SearchResponse:
     folder_paths: List[str] = []
     files_synced = 0
+    index_warnings: List[str] = []
+    pages_in_scope = 0
+    chunks_indexed = 0
 
     try:
         sync_summary = sync_scope_from_disk(db, source_id, domain_id, project_id)
         folder_paths = [str(p) for p in sync_summary.get("folder_paths", [])]
         files_synced = int(sync_summary.get("files_found", 0))
+        for detail in sync_summary.get("details", []):
+            if not isinstance(detail, dict):
+                continue
+            for result in detail.get("results", []):
+                result_str = str(result)
+                if result_str.startswith("indexed_failed:") or result_str.startswith("indexed_empty:"):
+                    index_warnings.append(result_str)
     except Exception as exc:
         log_exception(
             "Search folder sync",
@@ -124,6 +287,24 @@ def generate_answer(
             endpoint="/api/search",
             db=db,
         )
+
+    try:
+        index_result = ensure_indexed_for_scope(db, source_id, domain_id, project_id)
+        pages_in_scope = int(index_result.get("pages_in_scope", 0))
+        for failure in index_result.get("failed", []):
+            index_warnings.append(str(failure))
+    except Exception as exc:
+        log_exception(
+            "Search re-index",
+            exc,
+            page="Ask",
+            endpoint="/api/search",
+            db=db,
+        )
+        index_warnings.append(f"Re-index failed: {exc}")
+
+    pages_in_scope = max(pages_in_scope, len(get_pages_in_scope(db, source_id, domain_id, project_id)))
+    chunks_indexed = count_chunks_in_scope(db, source_id, domain_id, project_id)
 
     try:
         retrieved = retrieve_chunks(db, question, source_id, domain_id, project_id)
@@ -135,16 +316,42 @@ def generate_answer(
             endpoint="/api/search",
             db=db,
         )
-        msg = f"Search failed while connecting to OpenAI for embeddings: {exc}.{SSL_HELP}"
-        return _error_response(msg, folder_paths, files_synced)
+        if chunks_indexed > 0:
+            try:
+                retrieved = keyword_retrieve_chunks(
+                    db, question, source_id, domain_id, project_id
+                )
+            except Exception as kw_exc:
+                log_exception(
+                    "Search keyword fallback",
+                    kw_exc,
+                    page="Ask",
+                    endpoint="/api/search",
+                    db=db,
+                )
+                retrieved = []
+        else:
+            retrieved = []
+
+        if not retrieved:
+            msg = f"Search failed while connecting to OpenAI for embeddings: {exc}.{SSL_HELP}"
+            return _error_response(
+                msg,
+                folder_paths,
+                files_synced,
+                pages_in_scope,
+                chunks_indexed,
+                index_warnings,
+            )
 
     if not retrieved:
         return _error_response(
-            "I could not find sufficient information in the knowledge base to answer this question. "
-            "No relevant content was found in the selected scope. "
-            "Add or sync content on the Manage page first.",
+            _empty_scope_message(pages_in_scope, chunks_indexed, index_warnings),
             folder_paths,
             files_synced,
+            pages_in_scope,
+            chunks_indexed,
+            index_warnings,
         )
 
     context_parts: List[str] = []
@@ -184,6 +391,9 @@ Answer the question using only the context above. Include inline citations [1], 
             "OpenAI API key is not configured. Please set OPENAI_API_KEY in backend/.env.",
             folder_paths,
             files_synced,
+            pages_in_scope,
+            chunks_indexed,
+            index_warnings,
         )
 
     try:
@@ -205,7 +415,14 @@ Answer the question using only the context above. Include inline citations [1], 
             db=db,
         )
         msg = f"Search failed while generating the answer via OpenAI: {exc}.{SSL_HELP}"
-        return _error_response(msg, folder_paths, files_synced)
+        return _error_response(
+            msg,
+            folder_paths,
+            files_synced,
+            pages_in_scope,
+            chunks_indexed,
+            index_warnings,
+        )
 
     not_found_phrases = [
         "could not find sufficient information",
@@ -222,6 +439,8 @@ Answer the question using only the context above. Include inline citations [1], 
         confidence = "high"
     elif avg_score >= 0.5:
         confidence = "medium"
+    elif avg_score >= 0.15:
+        confidence = "low"
     else:
         confidence = "low"
 
@@ -236,4 +455,7 @@ Answer the question using only the context above. Include inline citations [1], 
         found_relevant=found_relevant,
         folder_paths=folder_paths,
         files_synced=files_synced,
+        pages_in_scope=pages_in_scope,
+        chunks_indexed=chunks_indexed,
+        index_warnings=index_warnings,
     )

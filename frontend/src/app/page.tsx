@@ -153,13 +153,31 @@ export default function HomePage() {
 
       {result && (
         <div className="mt-8 space-y-6">
-          {(result.folder_paths.length > 0 || result.files_synced > 0) && (
-            <p className="text-xs text-slate-500">
-              Searched {result.files_synced} file(s) from{" "}
-              {result.folder_paths.length} folder path
-              {result.folder_paths.length !== 1 ? "s" : ""}
-              {result.folder_paths[0] ? `: ${result.folder_paths[0]}` : ""}
-            </p>
+          {(result.folder_paths.length > 0 ||
+            result.files_synced > 0 ||
+            result.pages_in_scope > 0) && (
+            <div className="space-y-1 text-xs text-slate-500">
+              {(result.folder_paths.length > 0 || result.files_synced > 0) && (
+                <p>
+                  Searched {result.files_synced} file(s) from{" "}
+                  {result.folder_paths.length} folder path
+                  {result.folder_paths.length !== 1 ? "s" : ""}
+                  {result.folder_paths[0] ? `: ${result.folder_paths[0]}` : ""}
+                </p>
+              )}
+              {result.pages_in_scope > 0 && (
+                <p>
+                  {result.pages_in_scope} page(s) in scope, {result.chunks_indexed}{" "}
+                  indexed chunk(s) searched
+                </p>
+              )}
+              {result.index_warnings.length > 0 && (
+                <p className="text-amber-700">
+                  Indexing warnings: {result.index_warnings.slice(0, 2).join("; ")}
+                  {result.index_warnings.length > 2 ? "…" : ""} — see Logs for details.
+                </p>
+              )}
+            </div>
           )}
           <AnswerDisplay
             answer={result.answer}

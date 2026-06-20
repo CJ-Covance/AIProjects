@@ -7,9 +7,16 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Domain, Project, Source, WebPage
-from app.schemas import HierarchyNode, SearchRequest, SearchResponse
+from app.schemas import (
+    HierarchyNode,
+    ReindexRequest,
+    ReindexResponse,
+    SearchRequest,
+    SearchResponse,
+)
 from app.services.folders import resolve_domain_path, resolve_project_path, resolve_source_path
 from app.services.rag import generate_answer
+from app.services.scope import ensure_indexed_for_scope
 
 router = APIRouter(tags=["search"])
 
@@ -22,6 +29,22 @@ def search(payload: SearchRequest, db: Session = Depends(get_db)):
         source_id=payload.source_id,
         domain_id=payload.domain_id,
         project_id=payload.project_id,
+    )
+
+
+@router.post("/api/reindex", response_model=ReindexResponse)
+def reindex(payload: ReindexRequest, db: Session = Depends(get_db)):
+    result = ensure_indexed_for_scope(
+        db,
+        source_id=payload.source_id,
+        domain_id=payload.domain_id,
+        project_id=payload.project_id,
+    )
+    return ReindexResponse(
+        pages_in_scope=int(result.get("pages_in_scope", 0)),
+        already_indexed=int(result.get("already_indexed", 0)),
+        reindexed=int(result.get("reindexed", 0)),
+        failed=[str(f) for f in result.get("failed", [])],
     )
 
 

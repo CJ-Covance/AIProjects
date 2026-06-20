@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
 from app.models import Domain, Project, Source, WebPage
-from app.services.file_reader import list_supported_files, read_file_content
+from app.services.file_reader import SUPPORTED_EXTENSIONS, list_supported_files, read_file_content
 from app.services.folders import (
     ensure_hierarchy_folders,
     get_hierarchy_labels,
@@ -23,8 +23,20 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _sync_file(db: Session, project: Project, file_path: Path, project_folder: Path) -> str:
-    relative_path = str(file_path.relative_to(project_folder))
+def list_files_shallow(folder: Path) -> List[Path]:
+    """Files directly in folder (not subfolders) — for source/domain root files."""
+    if not folder.exists() or not folder.is_dir():
+        return []
+    return sorted(
+        [
+            p
+            for p in folder.iterdir()
+            if p.is_file() and p.suffix.lower() in SUPPORTED_EXTENSIONS
+        ]
+    )
+
+
+def _sync_file(db: Session, project: Project, file_path: Path, storage_key: str) -> str:
     title = file_path.stem
     try:
         content = read_file_content(file_path)
@@ -38,16 +50,15 @@ def _sync_file(db: Session, project: Project, file_path: Path, project_folder: P
         db.query(WebPage)
         .filter(
             WebPage.project_id == project.id,
-            WebPage.source_file_path == relative_path,
+            WebPage.source_file_path == storage_key,
         )
         .first()
     )
-    mtime = datetime.fromtimestamp(file_path.stat().st_mtime, tz=timezone.utc)
 
     if page:
         page.title = title
         page.content = content
-        page.url = f"file://{file_path.as_posix()}"
+        page.url = f"file:///{file_path.resolve().as_posix()}"
         page.updated_at = _utcnow()
         action = "updated"
     else:
@@ -55,8 +66,8 @@ def _sync_file(db: Session, project: Project, file_path: Path, project_folder: P
             project_id=project.id,
             title=title,
             content=content,
-            url=f"file://{file_path.as_posix()}",
-            source_file_path=relative_path,
+            url=f"file:///{file_path.resolve().as_posix()}",
+            source_file_path=storage_key,
         )
         db.add(page)
         action = "created"
@@ -64,10 +75,47 @@ def _sync_file(db: Session, project: Project, file_path: Path, project_folder: P
     db.commit()
     db.refresh(page)
     try:
-        index_web_page(db, page)
+        count = index_web_page(db, page)
+        if count == 0:
+            return f"indexed_empty:{file_path.name}"
+        return action
     except Exception as exc:
         return f"indexed_failed:{file_path.name}:{exc}"
-    return action
+
+
+def _sync_folder(
+    db: Session, project_id: str, folder: Path, recursive: bool = True
+) -> Dict[str, object]:
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise ValueError("Project not found")
+
+    if not folder.exists():
+        folder.mkdir(parents=True, exist_ok=True)
+
+    if recursive:
+        files = list_supported_files(folder)
+        results = []
+        for file_path in files:
+            try:
+                key = str(file_path.relative_to(folder))
+            except ValueError:
+                key = f"@external/{file_path.name}"
+            results.append(_sync_file(db, project, file_path, key))
+    else:
+        files = list_files_shallow(folder)
+        results = []
+        for file_path in files:
+            key = f"@root/{folder.name}/{file_path.name}"
+            results.append(_sync_file(db, project, file_path, key))
+
+    return {
+        "project_id": project_id,
+        "folder_path": str(folder.resolve()),
+        "files_found": len(files),
+        "results": results,
+        "recursive": recursive,
+    }
 
 
 def sync_project_folder(db: Session, project_id: str) -> Dict[str, object]:
@@ -89,21 +137,55 @@ def sync_project_folder(db: Session, project_id: str) -> Dict[str, object]:
             "message": "No folder path configured for this project",
         }
 
-    if not folder.exists():
-        folder.mkdir(parents=True, exist_ok=True)
+    result = _sync_folder(db, project_id, folder, recursive=True)
+    result["message"] = f"Synced {result['files_found']} file(s) from disk"
+    return result
 
-    files = list_supported_files(folder)
-    results = []
-    for file_path in files:
-        results.append(_sync_file(db, project, file_path, folder))
 
-    return {
-        "project_id": project_id,
-        "folder_path": str(folder),
-        "files_found": len(files),
-        "results": results,
-        "message": f"Synced {len(files)} file(s) from disk",
-    }
+def _collect_sync_targets(
+    db: Session,
+    source_id: Optional[str],
+    domain_id: Optional[str],
+    project_id: Optional[str],
+) -> List[Tuple[str, Path, bool]]:
+    """Return (project_id, folder_path, recursive) tuples to scan."""
+    targets: List[Tuple[str, Path, bool]] = []
+
+    if project_id:
+        folder = resolve_project_path(db, project_id)
+        if folder:
+            targets.append((project_id, folder, True))
+        return targets
+
+    if domain_id:
+        projects = db.query(Project).filter(Project.domain_id == domain_id).all()
+        for project in projects:
+            folder = resolve_project_path(db, project.id)
+            if folder:
+                targets.append((project.id, folder, True))
+        domain_path = resolve_domain_path(db, domain_id)
+        if domain_path and projects:
+            targets.append((projects[0].id, domain_path, False))
+        return targets
+
+    if source_id:
+        projects = (
+            db.query(Project)
+            .join(Domain, Project.domain_id == Domain.id)
+            .filter(Domain.source_id == source_id)
+            .all()
+        )
+        for project in projects:
+            folder = resolve_project_path(db, project.id)
+            if folder:
+                targets.append((project.id, folder, True))
+        source_path = resolve_source_path(db, source_id)
+        if source_path and projects:
+            # Files placed directly in source folder (e.g. knowledge_base/Cancer/*.txt)
+            targets.append((projects[0].id, source_path, False))
+        return targets
+
+    return targets
 
 
 def sync_scope_from_disk(
@@ -113,6 +195,8 @@ def sync_scope_from_disk(
     project_id: Optional[str] = None,
 ) -> Dict[str, object]:
     paths = resolve_scope_paths(db, source_id, domain_id, project_id)
+    targets = _collect_sync_targets(db, source_id, domain_id, project_id)
+
     summary: Dict[str, object] = {
         "folder_paths": [str(p) for p in paths],
         "projects_synced": 0,
@@ -120,25 +204,13 @@ def sync_scope_from_disk(
         "details": [],
     }
 
-    project_ids: List[str] = []
-    if project_id:
-        project_ids = [project_id]
-    elif domain_id:
-        project_ids = [
-            p.id for p in db.query(Project).filter(Project.domain_id == domain_id).all()
-        ]
-    elif source_id:
-        domain_ids = [
-            d.id for d in db.query(Domain).filter(Domain.source_id == source_id).all()
-        ]
-        if domain_ids:
-            project_ids = [
-                p.id
-                for p in db.query(Project).filter(Project.domain_id.in_(domain_ids)).all()
-            ]
-
-    for pid in project_ids:
-        result = sync_project_folder(db, pid)
+    seen: set[Tuple[str, str, bool]] = set()
+    for pid, folder, recursive in targets:
+        key = (pid, str(folder.resolve()), recursive)
+        if key in seen:
+            continue
+        seen.add(key)
+        result = _sync_folder(db, pid, folder, recursive=recursive)
         summary["details"].append(result)
         summary["projects_synced"] = int(summary["projects_synced"]) + 1
         summary["files_found"] = int(summary["files_found"]) + int(result["files_found"])
@@ -163,8 +235,6 @@ def save_uploaded_file(
         raise ValueError("Invalid filename")
 
     suffix = Path(safe_name).suffix.lower()
-    from app.services.file_reader import SUPPORTED_EXTENSIONS
-
     if suffix not in SUPPORTED_EXTENSIONS:
         raise ValueError(
             f"Unsupported file type. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
@@ -172,10 +242,11 @@ def save_uploaded_file(
 
     target = folder / safe_name
     target.write_bytes(file_bytes)
-    result = _sync_file(db, project, target, folder)
+    key = str(target.relative_to(folder))
+    result = _sync_file(db, project, target, key)
     return {
         "project_id": project_id,
-        "folder_path": str(folder),
+        "folder_path": str(folder.resolve()),
         "filename": safe_name,
         "result": result,
     }

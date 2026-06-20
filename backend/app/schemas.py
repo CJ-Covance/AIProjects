@@ -154,6 +154,22 @@ class SearchResponse(BaseModel):
     found_relevant: bool
     folder_paths: List[str] = []
     files_synced: int = 0
+    pages_in_scope: int = 0
+    chunks_indexed: int = 0
+    index_warnings: List[str] = []
+
+
+class ReindexRequest(BaseModel):
+    source_id: Optional[str] = None
+    domain_id: Optional[str] = None
+    project_id: Optional[str] = None
+
+
+class ReindexResponse(BaseModel):
+    pages_in_scope: int
+    already_indexed: int
+    reindexed: int
+    failed: List[str] = []
 
 
 class FolderSyncResponse(BaseModel):
