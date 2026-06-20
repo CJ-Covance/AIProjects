@@ -11,5 +11,6 @@ openai==1.57.4
 python-dotenv==1.0.1
 numpy==1.26.4
 httpx==0.28.1
+certifi==2024.12.14
 python-multipart==0.0.20
 pypdf==5.1.0

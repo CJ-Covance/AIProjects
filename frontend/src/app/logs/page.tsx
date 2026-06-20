@@ -33,7 +33,12 @@ export default function LogsPage() {
       setTotal(data.total);
       setFileTail(data.file_tail);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load logs");
+      const msg = err instanceof Error ? err.message : "Failed to load logs";
+      setError(
+        msg.includes("Not Found")
+          ? `${msg} — Pull the latest code (git pull) and restart the backend. Use http://localhost:3000/logs in your browser.`
+          : msg
+      );
     } finally {
       setLoading(false);
     }
@@ -65,8 +70,9 @@ export default function LogsPage() {
             issues like &ldquo;failed to fetch&rdquo; when saving web pages.
           </p>
           <p className="mt-1 text-xs text-slate-400">
-            API base: <code className="rounded bg-slate-100 px-1">{api.baseUrl}</code> — logs refresh
-            every 10 seconds
+            API: <code className="rounded bg-slate-100 px-1">{api.baseUrl}/api/logs</code> — open
+            this UI at <code className="rounded bg-slate-100 px-1">http://localhost:3000/logs</code>{" "}
+            (not port 8000)
           </p>
         </div>
         <div className="flex gap-2">

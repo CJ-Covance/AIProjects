@@ -10,17 +10,16 @@ from app.models import ActivityLog
 from app.schemas import ActivityLogOut, LogsResponse
 from app.services.page_files import read_log_file_tail
 
-router = APIRouter(prefix="/api/logs", tags=["logs"])
+router = APIRouter(tags=["logs"])
 
 
-@router.get("", response_model=LogsResponse)
-def list_logs(
-    level: Optional[str] = Query(None, description="Filter by level: INFO, WARNING, ERROR"),
-    page: Optional[str] = Query(None, description="Filter by UI page name"),
-    limit: int = Query(100, ge=1, le=500),
-    offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db),
-):
+def _fetch_logs(
+    db: Session,
+    level: Optional[str],
+    page: Optional[str],
+    limit: int,
+    offset: int,
+) -> LogsResponse:
     query = db.query(ActivityLog).order_by(ActivityLog.created_at.desc())
     if level:
         query = query.filter(ActivityLog.level == level.upper())
@@ -36,7 +35,20 @@ def list_logs(
     )
 
 
-@router.delete("", status_code=204)
+@router.get("/api/logs", response_model=LogsResponse)
+@router.get("/api/log", response_model=LogsResponse)
+def list_logs(
+    level: Optional[str] = Query(None, description="Filter by level: INFO, WARNING, ERROR"),
+    page: Optional[str] = Query(None, description="Filter by UI page name"),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    return _fetch_logs(db, level, page, limit, offset)
+
+
+@router.delete("/api/logs", status_code=204)
+@router.delete("/api/log", status_code=204)
 def clear_logs(db: Session = Depends(get_db)):
     db.query(ActivityLog).delete()
     db.commit()

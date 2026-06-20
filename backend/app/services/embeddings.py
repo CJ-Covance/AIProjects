@@ -1,18 +1,42 @@
 from __future__ import annotations
 
 import json
-from typing import List, Optional
+from typing import List, Optional, Union
 
+import certifi
+import httpx
 import numpy as np
 from openai import OpenAI
 
 from app.config import settings
 
+_client: Optional[OpenAI] = None
+
+
+def _build_http_client() -> httpx.Client:
+    """Use certifi CA bundle — fixes SSL errors on many Windows/corporate setups."""
+    verify: Union[bool, str] = certifi.where()
+    if not settings.openai_ssl_verify:
+        verify = False
+    return httpx.Client(verify=verify, timeout=120.0)
+
 
 def get_openai_client() -> Optional[OpenAI]:
+    global _client
     if not settings.openai_api_key:
         return None
-    return OpenAI(api_key=settings.openai_api_key)
+    if _client is None:
+        _client = OpenAI(
+            api_key=settings.openai_api_key,
+            http_client=_build_http_client(),
+        )
+    return _client
+
+
+def reset_openai_client() -> None:
+    """Reset cached client (e.g. after .env change)."""
+    global _client
+    _client = None
 
 
 def embed_texts(texts: List[str]) -> List[List[float]]:

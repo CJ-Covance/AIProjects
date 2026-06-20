@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models import Chunk, Domain, Project, Source, WebPage
 from app.schemas import Citation, SearchResponse
+from app.services.activity_log import log_exception
 from app.services.embeddings import (
     cosine_similarity,
     deserialize_embedding,
@@ -26,6 +27,26 @@ STRICT RULES:
 5. If sources contain conflicting information, note the conflict and cite both sources.
 6. Write in clear, formal English. Consolidate information from multiple passages into a coherent answer.
 7. Keep answers concise but complete."""
+
+SSL_HELP = (
+    " If you see SSL/certificate errors on Windows, run: pip install certifi "
+    "and restart the backend. For development only, you may set OPENAI_SSL_VERIFY=false in backend/.env."
+)
+
+
+def _error_response(
+    message: str,
+    folder_paths: Optional[List[str]] = None,
+    files_synced: int = 0,
+) -> SearchResponse:
+    return SearchResponse(
+        answer=message,
+        citations=[],
+        confidence="none",
+        found_relevant=False,
+        folder_paths=folder_paths or [],
+        files_synced=files_synced,
+    )
 
 
 def _build_filters(
@@ -88,20 +109,42 @@ def generate_answer(
     domain_id: Optional[str] = None,
     project_id: Optional[str] = None,
 ) -> SearchResponse:
-    sync_summary = sync_scope_from_disk(db, source_id, domain_id, project_id)
-    folder_paths = [str(p) for p in sync_summary.get("folder_paths", [])]
-    files_synced = int(sync_summary.get("files_found", 0))
+    folder_paths: List[str] = []
+    files_synced = 0
 
-    retrieved = retrieve_chunks(db, question, source_id, domain_id, project_id)
+    try:
+        sync_summary = sync_scope_from_disk(db, source_id, domain_id, project_id)
+        folder_paths = [str(p) for p in sync_summary.get("folder_paths", [])]
+        files_synced = int(sync_summary.get("files_found", 0))
+    except Exception as exc:
+        log_exception(
+            "Search folder sync",
+            exc,
+            page="Ask",
+            endpoint="/api/search",
+            db=db,
+        )
+
+    try:
+        retrieved = retrieve_chunks(db, question, source_id, domain_id, project_id)
+    except Exception as exc:
+        log_exception(
+            "Search retrieval",
+            exc,
+            page="Ask",
+            endpoint="/api/search",
+            db=db,
+        )
+        msg = f"Search failed while connecting to OpenAI for embeddings: {exc}.{SSL_HELP}"
+        return _error_response(msg, folder_paths, files_synced)
 
     if not retrieved:
-        return SearchResponse(
-            answer="I could not find sufficient information in the knowledge base to answer this question. No relevant content was found in the selected scope.",
-            citations=[],
-            confidence="none",
-            found_relevant=False,
-            folder_paths=folder_paths,
-            files_synced=files_synced,
+        return _error_response(
+            "I could not find sufficient information in the knowledge base to answer this question. "
+            "No relevant content was found in the selected scope. "
+            "Add or sync content on the Manage page first.",
+            folder_paths,
+            files_synced,
         )
 
     context_parts: List[str] = []
@@ -137,24 +180,32 @@ Answer the question using only the context above. Include inline citations [1], 
 
     client = get_openai_client()
     if not client:
-        return SearchResponse(
-            answer="OpenAI API key is not configured. Please set OPENAI_API_KEY in the backend environment.",
-            citations=citations,
-            confidence="none",
-            found_relevant=False,
-            folder_paths=folder_paths,
-            files_synced=files_synced,
+        return _error_response(
+            "OpenAI API key is not configured. Please set OPENAI_API_KEY in backend/.env.",
+            folder_paths,
+            files_synced,
         )
 
-    response = client.chat.completions.create(
-        model=settings.openai_chat_model,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.1,
-    )
-    answer = response.choices[0].message.content or ""
+    try:
+        response = client.chat.completions.create(
+            model=settings.openai_chat_model,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.1,
+        )
+        answer = response.choices[0].message.content or ""
+    except Exception as exc:
+        log_exception(
+            "Search OpenAI chat",
+            exc,
+            page="Ask",
+            endpoint="/api/search",
+            db=db,
+        )
+        msg = f"Search failed while generating the answer via OpenAI: {exc}.{SSL_HELP}"
+        return _error_response(msg, folder_paths, files_synced)
 
     not_found_phrases = [
         "could not find sufficient information",

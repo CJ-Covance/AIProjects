@@ -65,7 +65,7 @@ def _sync_file(db: Session, project: Project, file_path: Path, project_folder: P
     db.refresh(page)
     try:
         index_web_page(db, page)
-    except ValueError as exc:
+    except Exception as exc:
         return f"indexed_failed:{file_path.name}:{exc}"
     return action
 

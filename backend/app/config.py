@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     chunk_overlap: int = 150
     top_k_chunks: int = 8
     cors_origins: str = "http://localhost:3000"
+    openai_ssl_verify: bool = True
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),

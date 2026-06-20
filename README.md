@@ -93,9 +93,25 @@ backend/knowledge_base/
 
 Supported file types: `.pdf`, `.html`, `.htm`, `.md`, `.txt`
 
+### SSL errors on Windows (OpenAI connection)
+
+If Ask fails with `SSL: CERTIFICATE_VERIFY_FAILED`:
+
+```bash
+pip install certifi
+```
+
+Add to `backend/.env` and restart:
+
+```env
+OPENAI_SSL_VERIFY=true
+```
+
+For development only behind a corporate proxy, you may set `OPENAI_SSL_VERIFY=false`.
+
 ### Activity logs
 
-Open **Logs** in the navigation bar (`/logs`) to view backend activity, API errors, page save details, and the `backend/logs/atlas.log` file tail. Use this to diagnose "failed to fetch" errors — usually the backend is not running or not reachable at `http://localhost:8000`.
+Open **Logs** at http://localhost:3000/logs (frontend — not http://localhost:8000/log).
 
 Configure the root path in `backend/.env`:
 

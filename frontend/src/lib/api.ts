@@ -35,7 +35,9 @@ async function request<T>(path: string, options?: RequestOptions): Promise<T> {
   } catch (err) {
     const hint =
       err instanceof TypeError
-        ? `Cannot reach the backend at ${API_BASE}. Make sure the backend is running (python -m uvicorn app.main:app --reload --port 8000). See the Logs page for details.`
+        ? `Network error reaching ${API_BASE}. The backend may have crashed mid-request. ` +
+          `Confirm it is running: python -m uvicorn app.main:app --reload --port 8000. ` +
+          `Open http://localhost:3000/logs (not port 8000).`
         : err instanceof Error
           ? err.message
           : "Network error";
