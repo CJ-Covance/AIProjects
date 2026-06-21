@@ -1,0 +1,413 @@
+openapi: 3.1.0
+info:
+  title: Confluence2.0 API
+  version: 0.1.0
+  description: Enterprise RAG knowledge platform API
+servers:
+  - url: /api
+paths:
+  /healthz:
+    get:
+      operationId: getHealth
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /login:
+    get:
+      operationId: startLogin
+      summary: Start OIDC login
+      responses:
+        "302":
+          description: Redirect to identity provider
+  /callback:
+    get:
+      operationId: authCallback
+      summary: OIDC callback
+      responses:
+        "302":
+          description: Redirect to app after login
+  /logout:
+    get:
+      operationId: logout
+      summary: Log out
+      responses:
+        "302":
+          description: Redirect after logout
+  /auth/user:
+    get:
+      operationId: getCurrentUser
+      summary: Current authenticated user
+      responses:
+        "200":
+          description: User or null
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUserResponse"
+  /mobile-auth/token-exchange:
+    post:
+      operationId: mobileTokenExchange
+      summary: Exchange OIDC code for session token (mobile)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MobileTokenExchangeRequest"
+      responses:
+        "200":
+          description: Session token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MobileTokenExchangeResponse"
+  /mobile-auth/logout:
+    post:
+      operationId: mobileLogout
+      summary: Mobile logout
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Logged out
+  /pages:
+    get:
+      operationId: listPages
+      summary: List knowledge pages
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: domain
+          in: query
+          schema:
+            type: string
+        - name: project
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Page list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Page"
+    post:
+      operationId: createPage
+      summary: Create a knowledge page
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePageRequest"
+      responses:
+        "201":
+          description: Created page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Page"
+  /pages/{id}:
+    get:
+      operationId: getPage
+      summary: Get page detail
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Page detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Page"
+        "404":
+          description: Not found
+    delete:
+      operationId: deletePage
+      summary: Delete a page
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+  /knowledge-stats:
+    get:
+      operationId: getKnowledgeStats
+      summary: Knowledge totals and top domains
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeStats"
+  /workspaces:
+    get:
+      operationId: getWorkspaces
+      summary: Distinct domains and projects with counts
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Workspaces
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Workspace"
+  /ask:
+    post:
+      operationId: askQuestion
+      summary: Ask a natural-language question
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AskRequest"
+      responses:
+        "200":
+          description: Answer with citations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AskResponse"
+  /ask/history:
+    get:
+      operationId: getAskHistory
+      summary: Recent questions
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Question history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuestionHistoryItem"
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sid
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ok
+    User:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          nullable: true
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        profileImageUrl:
+          type: string
+          nullable: true
+    AuthUserResponse:
+      type: object
+      required: [user]
+      properties:
+        user:
+          allOf:
+            - $ref: "#/components/schemas/User"
+          nullable: true
+    MobileTokenExchangeRequest:
+      type: object
+      required: [code, codeVerifier, redirectUri]
+      properties:
+        code:
+          type: string
+        codeVerifier:
+          type: string
+        redirectUri:
+          type: string
+    MobileTokenExchangeResponse:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+    Page:
+      type: object
+      required: [id, title, content, domain, project, sourceType, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        domain:
+          type: string
+        project:
+          type: string
+        sourceType:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreatePageRequest:
+      type: object
+      required: [title, content, domain, project]
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        domain:
+          type: string
+        project:
+          type: string
+    KnowledgeStats:
+      type: object
+      required: [totalPages, totalQuestions, topDomains]
+      properties:
+        totalPages:
+          type: integer
+        totalQuestions:
+          type: integer
+        topDomains:
+          type: array
+          items:
+            type: object
+            required: [domain, count]
+            properties:
+              domain:
+                type: string
+              count:
+                type: integer
+    Workspace:
+      type: object
+      required: [domain, project, pageCount]
+      properties:
+        domain:
+          type: string
+        project:
+          type: string
+        pageCount:
+          type: integer
+    AskRequest:
+      type: object
+      required: [question]
+      properties:
+        question:
+          type: string
+        domain:
+          type: string
+        project:
+          type: string
+    Citation:
+      type: object
+      required: [pageId, title, domain, project, snippet]
+      properties:
+        pageId:
+          type: integer
+        title:
+          type: string
+        domain:
+          type: string
+        project:
+          type: string
+        snippet:
+          type: string
+    AskResponse:
+      type: object
+      required: [question, answer, citations, sourcesConsidered]
+      properties:
+        question:
+          type: string
+        answer:
+          type: string
+        citations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Citation"
+        sourcesConsidered:
+          type: integer
+    QuestionHistoryItem:
+      type: object
+      required: [id, question, answer, citationCount, createdAt]
+      properties:
+        id:
+          type: integer
+        question:
+          type: string
+        answer:
+          type: string
+        citationCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
