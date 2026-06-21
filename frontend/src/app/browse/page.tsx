@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { APP_NAME } from "@/lib/app";
 import type { HierarchyNode } from "@/lib/types";
 import Link from "next/link";
 
@@ -83,7 +84,7 @@ export default function BrowsePage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-atlas-navy">Browse Knowledge</h1>
         <p className="mt-2 text-slate-600">
-          Explore the domains and projects Atlas knows about. Select an area to
+          Explore the domains and projects {APP_NAME} knows about. Select an area to
           focus your next question.
         </p>
       </div>

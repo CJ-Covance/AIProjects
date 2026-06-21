@@ -31,13 +31,6 @@ const emptyForm = (type: EntityType, parentId?: string): FormState => ({
   save_to_disk: true,
 });
 
-const PARENT_LABELS: Record<EntityType, string> = {
-  source: "",
-  domain: "Source",
-  project: "Domain",
-  page: "Project",
-};
-
 export default function ManagePage() {
   const [sources, setSources] = useState<Source[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
@@ -215,11 +208,7 @@ export default function ManagePage() {
       }
       setForm(null);
       if (pageResult) {
-        if (pageResult.disk_path) {
-          setInfo(`Page saved to disk: ${pageResult.disk_path}`);
-        } else {
-          setInfo("Page saved to database.");
-        }
+        setInfo("Page saved successfully.");
         if (pageResult.index_warning) {
           setError(pageResult.index_warning);
         }
@@ -279,7 +268,7 @@ export default function ManagePage() {
     setError(null);
     try {
       const result = await api.syncProjectFolder(selectedProject);
-      setInfo(`${result.message} — folder: ${result.folder_path || "n/a"}`);
+      setInfo(result.message);
       await refreshAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sync failed");
@@ -297,7 +286,7 @@ export default function ManagePage() {
     setError(null);
     try {
       const result = await api.uploadProjectFile(selectedProject, file);
-      setInfo(`Uploaded ${result.filename} to ${result.folder_path}`);
+      setInfo(`Uploaded ${result.filename} successfully.`);
       await refreshAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
@@ -308,7 +297,7 @@ export default function ManagePage() {
 
   const selectedProjectData = projects.find((p) => p.id === selectedProject);
 
-  const EntityList = <T extends { id: string; name: string; resolved_folder_path?: string | null }>({
+  const EntityList = <T extends { id: string; name: string }>({
     title,
     items,
     selected,
@@ -358,11 +347,6 @@ export default function ManagePage() {
                   {countKey && typeof item[countKey] === "number" && (
                     <span className="ml-2 text-xs text-slate-400">({item[countKey] as number})</span>
                   )}
-                  {item.resolved_folder_path && (
-                    <p className="mt-0.5 truncate text-xs text-slate-400" title={item.resolved_folder_path}>
-                      📁 {item.resolved_folder_path}
-                    </p>
-                  )}
                 </button>
                 <button type="button" className="text-xs text-slate-400 hover:text-atlas-blue" onClick={() => onEdit(item)}>
                   Edit
@@ -387,9 +371,8 @@ export default function ManagePage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-atlas-navy">Manage Knowledge Base</h1>
         <p className="mt-2 text-slate-600">
-          Organize Sources → Domains → Projects → Web Pages. Set folder paths to map each level
-          to disk under <code className="rounded bg-slate-100 px-1">backend/knowledge_base/</code>.
-          PDF, HTML, Markdown, and text files are read from project folders during search.
+          Organize Sources → Domains → Projects → Web Pages. Upload or sync PDF, HTML,
+          Markdown, and text files for each project.
         </p>
       </div>
 
@@ -487,11 +470,7 @@ export default function ManagePage() {
         />
         <EntityList
           title="Web Pages"
-          items={pages.map((p) => ({
-            ...p,
-            name: p.title,
-            resolved_folder_path: p.disk_path || p.source_file_path,
-          }))}
+          items={pages.map((p) => ({ ...p, name: p.title }))}
           selected=""
           onSelect={() => {}}
           onAdd={() => openAddForm("page")}
@@ -517,46 +496,35 @@ export default function ManagePage() {
       </div>
 
       {selectedProjectData && (
-        <div className="atlas-card mb-6 p-4">
-          <h3 className="text-sm font-semibold text-atlas-navy">Project files on disk</h3>
-          <p className="mt-1 text-sm text-slate-600">
-            Folder:{" "}
-            <code className="rounded bg-slate-100 px-1 text-xs">
-              {selectedProjectData.resolved_folder_path || "Not configured"}
-            </code>
-          </p>
-          <p className="mt-1 text-xs text-slate-500">
-            Place PDF, HTML, HTM, MD, or TXT files in this folder, then sync or ask a question.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-3">
-            <button
-              type="button"
-              className="atlas-btn-secondary"
-              disabled={syncing}
-              onClick={handleSyncFolder}
-            >
-              {syncing ? "Working..." : "Sync folder from disk"}
-            </button>
-            <button
-              type="button"
-              className="atlas-btn-secondary"
-              disabled={syncing}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              Upload file
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              accept=".pdf,.html,.htm,.md,.txt"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleUpload(file);
-                e.target.value = "";
-              }}
-            />
-          </div>
+        <div className="atlas-card mb-6 flex flex-wrap items-center gap-3 p-4">
+          <span className="text-sm font-medium text-atlas-navy">Project files</span>
+          <button
+            type="button"
+            className="atlas-btn-secondary"
+            disabled={syncing}
+            onClick={handleSyncFolder}
+          >
+            {syncing ? "Working..." : "Sync folder from disk"}
+          </button>
+          <button
+            type="button"
+            className="atlas-btn-secondary"
+            disabled={syncing}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Upload file
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.html,.htm,.md,.txt"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleUpload(file);
+              e.target.value = "";
+            }}
+          />
         </div>
       )}
 
@@ -649,12 +617,6 @@ export default function ManagePage() {
                       onChange={(e) => setForm({ ...form, folder_path: e.target.value })}
                       placeholder={`Defaults to name, e.g. ${form.name || "My_Folder"}`}
                     />
-                    <p className="mt-1 text-xs text-slate-400">
-                      Disk path under knowledge_base/{PARENT_LABELS[form.type] ? "..." : ""}
-                      {form.type === "source" && "Source"}
-                      {form.type === "domain" && "Source/Domain"}
-                      {form.type === "project" && "Source/Domain/Project"}
-                    </p>
                   </div>
                 </>
               )}

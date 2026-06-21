@@ -5,6 +5,7 @@ import AnswerDisplay from "@/components/AnswerDisplay";
 import CitationPanel from "@/components/CitationPanel";
 import ScopeFilters from "@/components/ScopeFilters";
 import { api } from "@/lib/api";
+import { APP_NAME } from "@/lib/app";
 import type { HierarchyNode, SearchResponse } from "@/lib/types";
 
 export default function HomePage() {
@@ -69,7 +70,7 @@ export default function HomePage() {
           Ask once. Get one clear answer.
         </h1>
         <p className="mx-auto mt-3 max-w-2xl text-slate-600">
-          Atlas searches every relevant page across your connected knowledge sources
+          {APP_NAME} searches every relevant page across your connected knowledge sources
           and returns a consolidated, cited answer — so you don&apos;t have to read
           documents one by one.
         </p>
@@ -153,7 +154,7 @@ export default function HomePage() {
                 Searching...
               </span>
             ) : (
-              "Ask Atlas"
+              "Ask"
             )}
           </button>
         </div>
@@ -167,23 +168,16 @@ export default function HomePage() {
 
       {result && (
         <div className="mt-8 space-y-6">
-          {(result.folder_paths.length > 0 ||
-            result.files_synced > 0 ||
-            result.pages_in_scope > 0) && (
+          {(result.files_synced > 0 || result.pages_in_scope > 0) && (
             <div className="space-y-1 text-xs text-slate-500">
-              {(result.folder_paths.length > 0 || result.files_synced > 0) && (
+              {result.files_synced > 0 && (
                 <p>
-                  Searched {result.files_synced} file(s) from{" "}
-                  {result.folder_paths.length} folder path
-                  {result.folder_paths.length !== 1 ? "s" : ""}
-                  {result.folder_paths[0] ? `: ${result.folder_paths[0]}` : ""}
+                  Searched {result.files_synced} file(s) across {result.pages_in_scope} page(s)
+                  in scope.
                 </p>
               )}
-              {result.pages_in_scope > 0 && (
-                <p>
-                  {result.pages_in_scope} page(s) in scope, {result.chunks_indexed}{" "}
-                  indexed chunk(s) searched
-                </p>
+              {result.chunks_indexed > 0 && (
+                <p>{result.chunks_indexed} indexed chunk(s) searched.</p>
               )}
               {result.index_warnings.length > 0 && (
                 <p className="text-amber-700">
