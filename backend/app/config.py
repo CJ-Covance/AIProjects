@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, Dict
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Always load .env from the backend folder, even if uvicorn is started elsewhere
@@ -15,7 +17,10 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_embedding_model: str = "text-embedding-3-small"
     openai_chat_model: str = "gpt-4o-mini"
-    google_api_key: str = ""
+    google_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("GOOGLE_API_KEY", "GEMINI_API_KEY"),
+    )
     google_embedding_model: str = "gemini-embedding-001"
     google_chat_model: str = "gemini-2.0-flash"
     database_url: str = "sqlite:///./atlas.db"

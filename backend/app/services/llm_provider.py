@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import certifi
 import httpx
 from openai import APIStatusError, OpenAI, RateLimitError
 
-from app.config import settings
+from app.config import ENV_FILE, settings
 
 _openai_client: Optional[OpenAI] = None
 _google_client = None
@@ -234,6 +234,94 @@ def _chat_google(system_prompt: str, user_prompt: str) -> str:
         ),
     )
     return response.text or ""
+
+
+def mask_key(value: str) -> str:
+    if not value:
+        return ""
+    if len(value) <= 8:
+        return "****"
+    return f"{value[:4]}...{value[-4:]}"
+
+
+def test_providers() -> Dict[str, Any]:
+    """Run lightweight connectivity checks for configured LLM providers."""
+    results: Dict[str, Any] = {
+        "llm_provider": settings.llm_provider,
+        "env_file": str(ENV_FILE),
+        "openai": {
+            "configured": is_openai_configured(),
+            "key_preview": mask_key(settings.openai_api_key),
+            "embedding_model": settings.openai_embedding_model,
+            "chat_model": settings.openai_chat_model,
+            "embedding_ok": False,
+            "chat_ok": False,
+            "error": None,
+        },
+        "google": {
+            "configured": is_google_configured(),
+            "key_preview": mask_key(settings.google_api_key),
+            "embedding_model": settings.google_embedding_model,
+            "chat_model": settings.google_chat_model,
+            "embedding_ok": False,
+            "chat_ok": False,
+            "error": None,
+        },
+        "recommendation": None,
+    }
+
+    if is_openai_configured():
+        try:
+            _embed_openai(["connectivity test"])
+            results["openai"]["embedding_ok"] = True
+        except Exception as exc:
+            results["openai"]["error"] = str(exc)
+        try:
+            _chat_openai("You are a test bot.", "Reply with exactly: OK")
+            results["openai"]["chat_ok"] = True
+        except Exception as exc:
+            openai_err = results["openai"]["error"]
+            results["openai"]["error"] = f"{openai_err}; chat: {exc}" if openai_err else str(exc)
+
+    if is_google_configured():
+        try:
+            _embed_google(["connectivity test"], task_type="RETRIEVAL_DOCUMENT")
+            results["google"]["embedding_ok"] = True
+        except Exception as exc:
+            results["google"]["error"] = str(exc)
+        try:
+            _chat_google("You are a test bot.", "Reply with exactly: OK")
+            results["google"]["chat_ok"] = True
+        except Exception as exc:
+            google_err = results["google"]["error"]
+            results["google"]["error"] = f"{google_err}; chat: {exc}" if google_err else str(exc)
+
+    openai_ok = results["openai"]["embedding_ok"] and results["openai"]["chat_ok"]
+    google_ok = results["google"]["embedding_ok"] and results["google"]["chat_ok"]
+
+    if not is_openai_configured() and not is_google_configured():
+        results["recommendation"] = (
+            "No API keys found. Create backend/.env and set GOOGLE_API_KEY (or OPENAI_API_KEY). "
+            "Cursor IDE keys cannot be used here — this app calls OpenAI/Google directly."
+        )
+    elif google_ok:
+        results["recommendation"] = "Google Gemini is working. Set LLM_PROVIDER=google in backend/.env."
+    elif openai_ok:
+        results["recommendation"] = "OpenAI is working. Set LLM_PROVIDER=openai in backend/.env."
+    elif is_google_configured() and not google_ok:
+        results["recommendation"] = (
+            "Google key is set but failed. Verify GOOGLE_API_KEY at "
+            "https://aistudio.google.com/apikey and use GOOGLE_EMBEDDING_MODEL=gemini-embedding-001."
+        )
+    elif is_openai_configured() and not openai_ok:
+        results["recommendation"] = (
+            "OpenAI key is set but failed (often quota/billing). Use LLM_PROVIDER=google with a valid GOOGLE_API_KEY."
+        )
+    else:
+        results["recommendation"] = "Both providers failed. Check errors above and update backend/.env."
+
+    results["any_provider_working"] = openai_ok or google_ok
+    return results
 
 
 def generate_chat(system_prompt: str, user_prompt: str) -> Tuple[str, str]:

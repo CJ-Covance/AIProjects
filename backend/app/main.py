@@ -58,6 +58,7 @@ def health():
         is_ai_configured,
         is_google_configured,
         is_openai_configured,
+        mask_key,
     )
 
     return {
@@ -67,8 +68,22 @@ def health():
         "openai_configured": is_openai_configured(),
         "google_configured": is_google_configured(),
         "ai_configured": is_ai_configured(),
+        "openai_key_preview": mask_key(settings.openai_api_key),
+        "google_key_preview": mask_key(settings.google_api_key),
         "env_file": str(ENV_FILE),
         "env_file_exists": ENV_FILE.exists(),
         "log_file": str(LOG_FILE),
         "api_base_hint": "http://localhost:8000",
+        "setup_note": (
+            "Confluence2.0 uses OpenAI and/or Google Gemini API keys in backend/.env. "
+            "Cursor IDE API keys are not used by this app. "
+            "Run GET /api/health/test-llm to verify connectivity."
+        ),
     }
+
+
+@app.get("/api/health/test-llm")
+def test_llm():
+    from app.services.llm_provider import test_providers
+
+    return test_providers()
