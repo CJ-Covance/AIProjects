@@ -152,4 +152,14 @@ See [LICENSE](LICENSE).
 
 ## Confluence2.0 (sibling project)
 
-A separate enterprise RAG platform rebuilt from the Replit POC handoff lives in [`confluence2/`](confluence2/README.md). It uses Express, Postgres FTS, Replit Auth, and Gemini — and does not modify the Atlas app above.
+A separate enterprise RAG platform rebuilt from the Replit POC handoff lives on branch **`cursor/confluence2-platform-8c08`** in [`confluence2/`](confluence2/README.md).
+
+```bash
+git clone https://github.com/CJ-Covance/AIProjects.git
+cd AIProjects
+git checkout cursor/confluence2-platform-8c08
+cd confluence2
+# Follow confluence2/README.md for Postgres setup, .env, and run steps
+```
+
+It uses Express, Postgres FTS, Replit Auth, and Gemini — and does not modify the Atlas app above.

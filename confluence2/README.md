@@ -4,6 +4,180 @@ Enterprise RAG knowledge platform rebuilt from the development handoff spec. Aut
 
 This project lives alongside **Atlas** in the monorepo and does not modify the existing Atlas app.
 
+**Git branch:** `cursor/confluence2-platform-8c08`  
+**Pull request:** https://github.com/CJ-Covance/AIProjects/pull/5
+
+---
+
+## Download and run (step by step)
+
+### 1. Prerequisites
+
+Install these on your machine before you start:
+
+| Tool | Version | Install |
+|------|---------|---------|
+| **Git** | any recent | https://git-scm.com/downloads |
+| **Node.js** | 20+ | https://nodejs.org/ |
+| **pnpm** | 9+ | `npm install -g pnpm` |
+| **PostgreSQL** | 16+ | See platform steps below (no Docker required) |
+
+### 2. Download the code
+
+Clone the repository and switch to the Confluence2.0 branch:
+
+```bash
+git clone https://github.com/CJ-Covance/AIProjects.git
+cd AIProjects
+git checkout cursor/confluence2-platform-8c08
+```
+
+To update an existing clone later:
+
+```bash
+cd AIProjects
+git fetch origin
+git checkout cursor/confluence2-platform-8c08
+git pull origin cursor/confluence2-platform-8c08
+```
+
+All Confluence2.0 code lives under the `confluence2/` folder. Atlas (`backend/`, `frontend/`) is on `main` and is not required to run this project.
+
+### 3. Install and start PostgreSQL (local, no Docker)
+
+**Ubuntu / Debian**
+
+```bash
+sudo apt update
+sudo apt install -y postgresql postgresql-contrib
+sudo pg_ctlcluster 16 main start
+sudo -u postgres psql -c "CREATE USER confluence2 WITH PASSWORD 'confluence2';"
+sudo -u postgres psql -c "CREATE DATABASE confluence2 OWNER confluence2;"
+sudo -u postgres psql -d confluence2 -c "GRANT ALL ON SCHEMA public TO confluence2;"
+```
+
+**macOS (Homebrew)**
+
+```bash
+brew install postgresql@16
+brew services start postgresql@16
+createuser -s confluence2
+createdb -O confluence2 confluence2
+psql -d confluence2 -c "ALTER USER confluence2 WITH PASSWORD 'confluence2';"
+```
+
+**Windows**
+
+Install PostgreSQL from https://www.postgresql.org/download/windows/, then create a database and user named `confluence2` using pgAdmin or `psql`.
+
+### 4. Configure environment variables
+
+```bash
+cd confluence2
+cp .env.example .env
+```
+
+Edit `.env` and confirm at least these values:
+
+```env
+DATABASE_URL=postgresql://confluence2:confluence2@localhost:5432/confluence2
+SESSION_SECRET=replace-with-a-long-random-string
+DEV_AUTH_BYPASS=true
+WEB_ORIGIN=http://localhost:5173
+PORT=5000
+GOOGLE_API_KEY=your-gemini-api-key
+```
+
+| Variable | Required for local dev? | Notes |
+|----------|-------------------------|-------|
+| `DATABASE_URL` | Yes | Postgres connection string |
+| `SESSION_SECRET` | Yes | Any long random string |
+| `DEV_AUTH_BYPASS` | Yes (local) | `true` skips Replit login locally |
+| `GOOGLE_API_KEY` | For Ask only | Free tier at https://aistudio.google.com/apikey |
+| `REPL_ID`, Replit Gemini vars | Replit only | Set automatically on Replit |
+
+### 5. Install dependencies and create tables
+
+```bash
+cd confluence2
+pnpm install
+pnpm db:push
+```
+
+`pnpm db:push` applies the Drizzle schema (`users`, `sessions`, `pages`, `questions`) to your local Postgres database.
+
+### 6. Start the app
+
+**Option A — API and web together (recommended)**
+
+```bash
+cd confluence2
+pnpm dev:all
+```
+
+**Option B — separate terminals**
+
+```bash
+# Terminal 1 — API (port 5000)
+cd confluence2
+pnpm dev
+
+# Terminal 2 — Web UI (port 5173)
+cd confluence2
+pnpm dev:web
+```
+
+### 7. Open in browser
+
+1. Go to http://localhost:5173
+2. Click **Continue with Replit Auth** (local dev logs you in automatically when `DEV_AUTH_BYPASS=true`)
+3. Use **Add Knowledge** to create pages (domain + project + content)
+4. Use **Ask** to submit a question (requires `GOOGLE_API_KEY` or Replit Gemini integration)
+
+### 8. Verify the API (optional)
+
+```bash
+# Health check
+curl http://localhost:5000/api/healthz
+
+# Dev login (captures session cookie)
+curl -c /tmp/confluence2-cookies.txt http://localhost:5000/api/login
+
+# Current user
+curl -b /tmp/confluence2-cookies.txt http://localhost:5000/api/auth/user
+```
+
+### 9. Run on Replit (production)
+
+1. Import https://github.com/CJ-Covance/AIProjects into Replit
+2. Set the Repl branch to `cursor/confluence2-platform-8c08`
+3. Enable integrations: **Replit Auth**, **Postgres**, **Replit AI (Gemini)**
+4. Set `REPLIT_DOMAINS` to your published Repl domain
+5. Set `DEV_AUTH_BYPASS=false`
+6. Run:
+
+```bash
+cd confluence2
+pnpm install
+pnpm db:push
+pnpm run build
+```
+
+The `.replit` file in `confluence2/` contains a starter run/deploy configuration.
+
+### 10. Useful commands
+
+```bash
+cd confluence2
+
+pnpm typecheck          # TypeScript check all packages
+pnpm run build          # Production build (API + web)
+pnpm codegen            # Regenerate types from OpenAPI spec
+pnpm db:push            # Re-apply database schema after changes
+```
+
+---
+
 ## Stack
 
 - **API:** Express 5, Drizzle ORM, Postgres full-text search
@@ -13,6 +187,10 @@ This project lives alongside **Atlas** in the monorepo and does not modify the e
 - **Spec:** OpenAPI at `lib/api-spec/openapi.yaml`
 
 ## Prerequisites (local, no Docker)
+
+See **[Download and run (step by step)](confluence2/README.md#download-and-run-step-by-step)** in `confluence2/README.md` for the full guide.
+
+Quick summary:
 
 1. **Node.js 20+** and **pnpm**
 2. **PostgreSQL 16+** installed on your machine
