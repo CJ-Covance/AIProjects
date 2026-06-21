@@ -8,7 +8,8 @@ greenlet==3.2.4
 pydantic==2.10.3
 pydantic-settings==2.6.1
 openai==1.57.4
-google-genai==1.52.0
+# google-genai 1.47+ requires Python 3.10+; pin 1.46.0 for Python 3.9 (Windows) support
+google-genai==1.46.0
 python-dotenv==1.0.1
 numpy==1.26.4
 httpx==0.28.1
