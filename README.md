@@ -149,3 +149,7 @@ After running `seed_data.py`, try these questions:
 ## License
 
 See [LICENSE](LICENSE).
+
+## Confluence2.0 (sibling project)
+
+A separate enterprise RAG platform rebuilt from the Replit POC handoff lives in [`confluence2/`](confluence2/README.md). It uses Express, Postgres FTS, Replit Auth, and Gemini — and does not modify the Atlas app above.

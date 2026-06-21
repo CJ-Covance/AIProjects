@@ -1,0 +1,30 @@
+run = "cd confluence2 && pnpm install && pnpm db:push && pnpm dev:all"
+
+[deployment]
+run = ["sh", "-c", "cd confluence2 && pnpm install && pnpm db:push && pnpm run build && pnpm --filter @workspace/api-server run start"]
+
+[env]
+PYTHONPATH = ""
+
+[nix]
+channel = "stable-24_05"
+
+[interpreter]
+command = ["bash", "-lc"]
+
+[packager]
+language = "nodejs"
+
+[unitTest]
+language = "nodejs"
+
+[languages.javascript]
+pattern = "**/*.{js,ts,tsx,json}"
+syntax = "javascript"
+
+[languages.javascript.languageServer]
+start = "typescript-language-server --stdio"
+
+[ports]
+localPort = 5000
+externalPort = 80
