@@ -4,15 +4,24 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.models import Chunk, Domain, Project, Source, WebPage
 from app.services.llm_provider import get_embedding_provider_name
 
 
-def _page_needs_reindex(db: Session, page: WebPage, current_provider: str) -> bool:
+def _page_needs_reindex(db: Session, page: WebPage) -> bool:
     chunks = db.query(Chunk).filter(Chunk.web_page_id == page.id).all()
     if not chunks:
         return True
-    return any(chunk.embedding_provider != current_provider for chunk in chunks)
+    if any(chunk.embedding_provider is None for chunk in chunks):
+        return True
+
+    # In auto mode, any successfully indexed provider is acceptable.
+    if settings.llm_provider.lower().strip() == "auto":
+        return False
+
+    target_provider = get_embedding_provider_name()
+    return any(chunk.embedding_provider != target_provider for chunk in chunks)
 
 
 def get_pages_in_scope(
@@ -51,9 +60,17 @@ def count_chunks_in_scope(
     source_id: Optional[str] = None,
     domain_id: Optional[str] = None,
     project_id: Optional[str] = None,
+    embedding_provider: Optional[str] = None,
 ) -> int:
-    current_provider = get_embedding_provider_name()
-    query = db.query(Chunk).filter(Chunk.embedding_provider == current_provider)
+    provider = embedding_provider
+    if provider is None and settings.llm_provider.lower().strip() != "auto":
+        provider = get_embedding_provider_name()
+
+    query = db.query(Chunk)
+    if provider:
+        query = query.filter(Chunk.embedding_provider == provider)
+    else:
+        query = query.filter(Chunk.embedding_provider.isnot(None))
     if project_id:
         query = query.filter(Chunk.project_id == project_id)
     elif domain_id:
@@ -81,7 +98,7 @@ def ensure_indexed_for_scope(
     for page in pages:
         if not page.content or not page.content.strip():
             continue
-        if not _page_needs_reindex(db, page, current_provider):
+        if not _page_needs_reindex(db, page):
             already_indexed += 1
             continue
         try:

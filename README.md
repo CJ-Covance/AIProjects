@@ -186,7 +186,7 @@ After running `seed_data.py`, try these questions:
 | `GOOGLE_API_KEY` | — | Google Gemini API key (fallback or primary) |
 | `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` | OpenAI embedding model |
 | `OPENAI_CHAT_MODEL` | `gpt-4o-mini` | OpenAI chat model |
-| `GOOGLE_EMBEDDING_MODEL` | `text-embedding-004` | Google embedding model |
+| `GOOGLE_EMBEDDING_MODEL` | `gemini-embedding-001` | Google embedding model (`text-embedding-004` is retired) |
 | `GOOGLE_CHAT_MODEL` | `gemini-2.0-flash` | Google chat model |
 | `DATABASE_URL` | `sqlite:///./atlas.db` | Database connection string |
 | `CHUNK_SIZE` | `800` | Characters per text chunk |

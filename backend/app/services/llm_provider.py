@@ -9,7 +9,7 @@ from openai import APIStatusError, OpenAI, RateLimitError
 from app.config import settings
 
 _openai_client: Optional[OpenAI] = None
-_google_configured = False
+_google_client = None
 
 PROVIDER_OPENAI = "openai"
 PROVIDER_GOOGLE = "google"
@@ -35,9 +35,9 @@ def get_openai_client() -> Optional[OpenAI]:
 
 
 def reset_clients() -> None:
-    global _openai_client, _google_configured
+    global _openai_client, _google_client
     _openai_client = None
-    _google_configured = False
+    _google_client = None
 
 
 def is_openai_configured() -> bool:
@@ -67,7 +67,12 @@ def resolve_provider_order() -> List[str]:
 
 
 def get_embedding_provider_name() -> str:
-    """Provider used for new embeddings and vector search."""
+    """Preferred provider for explicit openai/google modes and new indexing."""
+    mode = settings.llm_provider.lower().strip()
+    if mode == PROVIDER_GOOGLE:
+        return PROVIDER_GOOGLE
+    if mode == PROVIDER_OPENAI:
+        return PROVIDER_OPENAI
     for provider in resolve_provider_order():
         if provider == PROVIDER_OPENAI and is_openai_configured():
             return PROVIDER_OPENAI
@@ -77,7 +82,7 @@ def get_embedding_provider_name() -> str:
         return PROVIDER_GOOGLE
     if is_openai_configured():
         return PROVIDER_OPENAI
-    return resolve_provider_order()[0]
+    return PROVIDER_OPENAI
 
 
 def is_quota_or_rate_error(exc: Exception) -> bool:
@@ -89,20 +94,20 @@ def is_quota_or_rate_error(exc: Exception) -> bool:
     return (
         "429" in msg
         or "quota" in msg
+        or "insufficient_quota" in msg
         or "rate limit" in msg
         or "resource exhausted" in msg
         or "exceeded your current" in msg
     )
 
 
-def _configure_google() -> None:
-    global _google_configured
-    if _google_configured:
-        return
-    import google.generativeai as genai
+def _get_google_client():
+    global _google_client
+    if _google_client is None:
+        from google import genai
 
-    genai.configure(api_key=settings.google_api_key)
-    _google_configured = True
+        _google_client = genai.Client(api_key=settings.google_api_key)
+    return _google_client
 
 
 def _embed_openai(texts: List[str]) -> List[List[float]]:
@@ -113,25 +118,30 @@ def _embed_openai(texts: List[str]) -> List[List[float]]:
     return [item.embedding for item in response.data]
 
 
-def _embed_google(texts: List[str]) -> List[List[float]]:
+def _embed_google(texts: List[str], task_type: str = "RETRIEVAL_DOCUMENT") -> List[List[float]]:
     if not settings.google_api_key:
         raise ValueError("GOOGLE_API_KEY is not configured.")
-    _configure_google()
-    import google.generativeai as genai
 
-    model_name = settings.google_embedding_model
-    if not model_name.startswith("models/"):
-        model_name = f"models/{model_name}"
+    from google.genai import types
 
-    vectors: List[List[float]] = []
-    for text in texts:
-        result = genai.embed_content(
-            model=model_name,
-            content=text,
-            task_type="retrieval_document",
-        )
-        vectors.append(result["embedding"])
-    return vectors
+    client = _get_google_client()
+    model = settings.google_embedding_model
+
+    result = client.models.embed_content(
+        model=model,
+        contents=texts,
+        config=types.EmbedContentConfig(task_type=task_type),
+    )
+    return [embedding.values for embedding in result.embeddings]
+
+
+def _embed_with_provider(
+    texts: List[str], provider: str, *, for_query: bool = False
+) -> List[List[float]]:
+    if provider == PROVIDER_OPENAI:
+        return _embed_openai(texts)
+    task_type = "RETRIEVAL_QUERY" if for_query else "RETRIEVAL_DOCUMENT"
+    return _embed_google(texts, task_type=task_type)
 
 
 def embed_texts(texts: List[str]) -> Tuple[List[List[float]], str]:
@@ -149,9 +159,7 @@ def embed_texts(texts: List[str]) -> Tuple[List[List[float]], str]:
         if provider == PROVIDER_GOOGLE and not is_google_configured():
             continue
         try:
-            if provider == PROVIDER_OPENAI:
-                return _embed_openai(texts), PROVIDER_OPENAI
-            return _embed_google(texts), PROVIDER_GOOGLE
+            return _embed_with_provider(texts, provider), provider
         except Exception as exc:
             errors.append(f"{provider}: {exc}")
             if auto_mode and is_quota_or_rate_error(exc):
@@ -162,22 +170,37 @@ def embed_texts(texts: List[str]) -> Tuple[List[List[float]], str]:
 
     hint = (
         "Set OPENAI_API_KEY and/or GOOGLE_API_KEY in backend/.env. "
-        "Use LLM_PROVIDER=auto to fall back when one provider hits quota limits."
+        "If OpenAI quota is exhausted, set LLM_PROVIDER=google. "
+        "Use LLM_PROVIDER=auto to fall back to Google on OpenAI quota errors."
     )
     detail = "; ".join(errors) if errors else "No provider keys configured."
     raise ValueError(f"Embedding failed. {detail} {hint}")
 
 
-def embed_query(text: str) -> List[float]:
-    """Embed a search query using the active indexed-chunk provider (no cross-provider fallback)."""
-    provider = get_embedding_provider_name()
-    if provider == PROVIDER_OPENAI:
-        if not is_openai_configured():
-            raise ValueError("OPENAI_API_KEY is not configured.")
-        return _embed_openai([text])[0]
-    if not is_google_configured():
-        raise ValueError("GOOGLE_API_KEY is not configured.")
-    return _embed_google([text])[0]
+def embed_query(text: str) -> Tuple[List[float], str]:
+    """Embed a search query, with auto fallback. Returns (vector, provider_used)."""
+    errors: List[str] = []
+    order = resolve_provider_order()
+    auto_mode = settings.llm_provider.lower().strip() == "auto"
+
+    for provider in order:
+        if provider == PROVIDER_OPENAI and not is_openai_configured():
+            continue
+        if provider == PROVIDER_GOOGLE and not is_google_configured():
+            continue
+        try:
+            vectors = _embed_with_provider([text], provider, for_query=True)
+            return vectors[0], provider
+        except Exception as exc:
+            errors.append(f"{provider}: {exc}")
+            if auto_mode and is_quota_or_rate_error(exc):
+                continue
+            if not auto_mode:
+                raise
+            continue
+
+    detail = "; ".join(errors) if errors else "No provider keys configured."
+    raise ValueError(f"Query embedding failed. {detail}")
 
 
 def _chat_openai(system_prompt: str, user_prompt: str) -> str:
@@ -198,16 +221,17 @@ def _chat_openai(system_prompt: str, user_prompt: str) -> str:
 def _chat_google(system_prompt: str, user_prompt: str) -> str:
     if not settings.google_api_key:
         raise ValueError("GOOGLE_API_KEY is not configured.")
-    _configure_google()
-    import google.generativeai as genai
 
-    model = genai.GenerativeModel(
-        settings.google_chat_model,
-        system_instruction=system_prompt,
-    )
-    response = model.generate_content(
-        user_prompt,
-        generation_config=genai.types.GenerationConfig(temperature=0.1),
+    from google.genai import types
+
+    client = _get_google_client()
+    response = client.models.generate_content(
+        model=settings.google_chat_model,
+        contents=user_prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            temperature=0.1,
+        ),
     )
     return response.text or ""
 
@@ -237,7 +261,7 @@ def generate_chat(system_prompt: str, user_prompt: str) -> Tuple[str, str]:
 
     hint = (
         "Set OPENAI_API_KEY and/or GOOGLE_API_KEY in backend/.env. "
-        "Use LLM_PROVIDER=auto to fall back when one provider hits quota limits."
+        "If OpenAI quota is exhausted, set LLM_PROVIDER=google."
     )
     detail = "; ".join(errors) if errors else "No provider keys configured."
     raise ValueError(f"Chat generation failed. {detail} {hint}")

@@ -131,11 +131,13 @@ def _chunk_query(
     domain_id: Optional[str],
     project_id: Optional[str],
     *,
+    embedding_provider: Optional[str] = None,
     current_provider_only: bool = True,
 ):
     query = db.query(Chunk)
     if current_provider_only:
-        query = query.filter(Chunk.embedding_provider == get_embedding_provider_name())
+        provider = embedding_provider or get_embedding_provider_name()
+        query = query.filter(Chunk.embedding_provider == provider)
     for f in _build_filters(source_id, domain_id, project_id):
         query = query.filter(f)
     return query
@@ -210,12 +212,18 @@ def retrieve_chunks(
     top_k: Optional[int] = None,
 ) -> List[Tuple[Chunk, float, WebPage, Project, Domain, Source]]:
     k = top_k or settings.top_k_chunks
-    query = _chunk_query(db, source_id, domain_id, project_id)
+    try:
+        query_embedding, provider_used = embed_query(question)
+    except Exception:
+        return keyword_retrieve_chunks(db, question, source_id, domain_id, project_id, top_k)
+
+    query = _chunk_query(
+        db, source_id, domain_id, project_id, embedding_provider=provider_used
+    )
     chunks = query.all()
     if not chunks:
         return keyword_retrieve_chunks(db, question, source_id, domain_id, project_id, top_k)
 
-    query_embedding = embed_query(question)
     query_vec = np.array(query_embedding, dtype=np.float32)
 
     matrix = np.stack([deserialize_embedding(c.embedding) for c in chunks])

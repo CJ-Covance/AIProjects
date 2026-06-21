@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     openai_embedding_model: str = "text-embedding-3-small"
     openai_chat_model: str = "gpt-4o-mini"
     google_api_key: str = ""
-    google_embedding_model: str = "text-embedding-004"
+    google_embedding_model: str = "gemini-embedding-001"
     google_chat_model: str = "gemini-2.0-flash"
     database_url: str = "sqlite:///./atlas.db"
     knowledge_base_root: str = "knowledge_base"
