@@ -99,6 +99,7 @@ class Chunk(Base):
     chunk_index: Mapped[int] = mapped_column(nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding_provider: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     source_id: Mapped[str] = mapped_column(String(36), nullable=False)
     domain_id: Mapped[str] = mapped_column(String(36), nullable=False)
     project_id: Mapped[str] = mapped_column(String(36), nullable=False)

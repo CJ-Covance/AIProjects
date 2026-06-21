@@ -10,9 +10,14 @@ ENV_FILE = BACKEND_DIR / ".env"
 
 
 class Settings(BaseSettings):
+    # openai | google | auto (auto tries OpenAI first, falls back to Google on quota/rate errors)
+    llm_provider: str = "auto"
     openai_api_key: str = ""
     openai_embedding_model: str = "text-embedding-3-small"
     openai_chat_model: str = "gpt-4o-mini"
+    google_api_key: str = ""
+    google_embedding_model: str = "text-embedding-004"
+    google_chat_model: str = "gemini-2.0-flash"
     database_url: str = "sqlite:///./atlas.db"
     knowledge_base_root: str = "knowledge_base"
     chunk_size: int = 800

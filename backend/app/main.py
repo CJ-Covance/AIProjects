@@ -53,10 +53,20 @@ app.include_router(logs.router)
 @app.get("/api/health")
 def health():
     from app.services.activity_log import LOG_FILE
+    from app.services.llm_provider import (
+        get_embedding_provider_name,
+        is_ai_configured,
+        is_google_configured,
+        is_openai_configured,
+    )
 
     return {
         "status": "ok",
-        "openai_configured": bool(settings.openai_api_key),
+        "llm_provider": settings.llm_provider,
+        "embedding_provider": get_embedding_provider_name(),
+        "openai_configured": is_openai_configured(),
+        "google_configured": is_google_configured(),
+        "ai_configured": is_ai_configured(),
         "env_file": str(ENV_FILE),
         "env_file_exists": ENV_FILE.exists(),
         "log_file": str(LOG_FILE),

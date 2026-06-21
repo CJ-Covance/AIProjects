@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models import Chunk, Domain, Project, Source, WebPage
-from app.services.embeddings import embed_texts, serialize_embedding
+from app.services.embeddings import serialize_embedding
+from app.services.llm_provider import embed_texts as provider_embed_texts
 
 
 def chunk_text(
@@ -48,7 +49,7 @@ def index_web_page(db: Session, web_page: WebPage) -> int:
         db.commit()
         return 0
 
-    embeddings = embed_texts(text_chunks)
+    embeddings, provider = provider_embed_texts(text_chunks)
     for idx, (chunk_text_content, embedding) in enumerate(zip(text_chunks, embeddings)):
         db.add(
             Chunk(
@@ -56,6 +57,7 @@ def index_web_page(db: Session, web_page: WebPage) -> int:
                 chunk_index=idx,
                 content=chunk_text_content,
                 embedding=serialize_embedding(embedding),
+                embedding_provider=provider,
                 source_id=source.id,
                 domain_id=domain.id,
                 project_id=project.id,

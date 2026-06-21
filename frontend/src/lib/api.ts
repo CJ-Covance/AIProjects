@@ -60,7 +60,16 @@ async function request<T>(path: string, options?: RequestOptions): Promise<T> {
 export const api = {
   baseUrl: API_BASE,
 
-  health: () => request<{ status: string; openai_configured: boolean; log_file?: string }>("/api/health"),
+  health: () =>
+    request<{
+      status: string;
+      llm_provider: string;
+      embedding_provider: string;
+      openai_configured: boolean;
+      google_configured: boolean;
+      ai_configured: boolean;
+      log_file?: string;
+    }>("/api/health"),
 
   getHierarchy: () => request<HierarchyNode[]>("/api/hierarchy"),
 

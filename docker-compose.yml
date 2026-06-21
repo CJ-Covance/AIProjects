@@ -6,9 +6,13 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-auto}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_EMBEDDING_MODEL=text-embedding-3-small
       - OPENAI_CHAT_MODEL=gpt-4o-mini
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GOOGLE_EMBEDDING_MODEL=text-embedding-004
+      - GOOGLE_CHAT_MODEL=gemini-2.0-flash
       - DATABASE_URL=sqlite:///./atlas.db
       - CORS_ORIGINS=http://localhost:3000
     volumes:

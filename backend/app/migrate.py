@@ -10,6 +10,7 @@ def run_migrations() -> None:
         ("domains", "folder_path", "VARCHAR(500)"),
         ("projects", "folder_path", "VARCHAR(500)"),
         ("web_pages", "source_file_path", "VARCHAR(1000)"),
+        ("chunks", "embedding_provider", "VARCHAR(20)"),
     ]
     inspector = inspect(engine)
     with engine.begin() as conn:

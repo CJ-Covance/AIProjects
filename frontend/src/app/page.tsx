@@ -18,6 +18,7 @@ export default function HomePage() {
   const [projectId, setProjectId] = useState("");
   const [activeCitation, setActiveCitation] = useState<number | null>(null);
   const [apiReady, setApiReady] = useState<boolean | null>(null);
+  const [llmProvider, setLlmProvider] = useState<string>("");
 
   useEffect(() => {
     api
@@ -26,7 +27,10 @@ export default function HomePage() {
       .catch(() => setHierarchy([]));
     api
       .health()
-      .then((h) => setApiReady(h.openai_configured))
+      .then((h) => {
+        setApiReady(h.ai_configured);
+        setLlmProvider(h.llm_provider);
+      })
       .catch(() => setApiReady(false));
   }, []);
 
@@ -79,9 +83,19 @@ export default function HomePage() {
 
       {apiReady === false && (
         <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          OpenAI API key is not configured on the backend. Search will not generate
-          AI answers until <code className="rounded bg-amber-100 px-1">OPENAI_API_KEY</code> is
-          set in <code className="rounded bg-amber-100 px-1">backend/.env</code>.
+          No AI provider is configured on the backend. Set{" "}
+          <code className="rounded bg-amber-100 px-1">OPENAI_API_KEY</code> and/or{" "}
+          <code className="rounded bg-amber-100 px-1">GOOGLE_API_KEY</code> in{" "}
+          <code className="rounded bg-amber-100 px-1">backend/.env</code>. Use{" "}
+          <code className="rounded bg-amber-100 px-1">LLM_PROVIDER=auto</code> to fall back
+          to Google when OpenAI quota is exceeded.
+        </div>
+      )}
+
+      {apiReady === true && llmProvider === "auto" && (
+        <div className="mb-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          AI provider mode: <strong>auto</strong> — OpenAI is tried first; Google is used
+          automatically if OpenAI returns quota or rate-limit errors.
         </div>
       )}
 

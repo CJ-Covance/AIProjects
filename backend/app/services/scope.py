@@ -5,6 +5,14 @@ from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.models import Chunk, Domain, Project, Source, WebPage
+from app.services.llm_provider import get_embedding_provider_name
+
+
+def _page_needs_reindex(db: Session, page: WebPage, current_provider: str) -> bool:
+    chunks = db.query(Chunk).filter(Chunk.web_page_id == page.id).all()
+    if not chunks:
+        return True
+    return any(chunk.embedding_provider != current_provider for chunk in chunks)
 
 
 def get_pages_in_scope(
@@ -44,7 +52,8 @@ def count_chunks_in_scope(
     domain_id: Optional[str] = None,
     project_id: Optional[str] = None,
 ) -> int:
-    query = db.query(Chunk)
+    current_provider = get_embedding_provider_name()
+    query = db.query(Chunk).filter(Chunk.embedding_provider == current_provider)
     if project_id:
         query = query.filter(Chunk.project_id == project_id)
     elif domain_id:
@@ -60,10 +69,11 @@ def ensure_indexed_for_scope(
     domain_id: Optional[str] = None,
     project_id: Optional[str] = None,
 ) -> Dict[str, object]:
-    """Re-index any pages in scope that have content but no embedding chunks."""
+    """Re-index pages in scope that are missing chunks or were embedded with another provider."""
     from app.services.indexer import index_web_page
 
     pages = get_pages_in_scope(db, source_id, domain_id, project_id)
+    current_provider = get_embedding_provider_name()
     reindexed = 0
     failed: List[str] = []
     already_indexed = 0
@@ -71,8 +81,7 @@ def ensure_indexed_for_scope(
     for page in pages:
         if not page.content or not page.content.strip():
             continue
-        chunk_count = db.query(Chunk).filter(Chunk.web_page_id == page.id).count()
-        if chunk_count > 0:
+        if not _page_needs_reindex(db, page, current_provider):
             already_indexed += 1
             continue
         try:
@@ -89,4 +98,5 @@ def ensure_indexed_for_scope(
         "already_indexed": already_indexed,
         "reindexed": reindexed,
         "failed": failed,
+        "embedding_provider": current_provider,
     }

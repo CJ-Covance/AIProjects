@@ -20,7 +20,7 @@ Source (Root)
 **Tech stack:**
 - **Frontend:** Next.js 14, React, Tailwind CSS
 - **Backend:** FastAPI, SQLAlchemy, SQLite
-- **AI:** OpenAI embeddings (`text-embedding-3-small`) + chat (`gpt-4o-mini`)
+- **AI:** OpenAI or Google Gemini (configurable); `LLM_PROVIDER=auto` falls back to Google on OpenAI quota errors
 - **Vector store:** Embeddings stored in SQLite with cosine similarity retrieval
 
 ## Features
@@ -38,7 +38,7 @@ Source (Root)
 
 - Python 3.9+ (tested on 3.9.5 and 3.12)
 - Node.js 20+
-- OpenAI API key
+- OpenAI API key and/or Google API key (Gemini)
 
 ### 1. Backend
 
@@ -48,7 +48,7 @@ python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env and set OPENAI_API_KEY=sk-...
+# Edit .env — set OPENAI_API_KEY and/or GOOGLE_API_KEY (see .env.example)
 
 python seed_data.py          # Load sample clinical-trial knowledge base
 python -m uvicorn app.main:app --reload --port 8000
@@ -181,9 +181,13 @@ After running `seed_data.py`, try these questions:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OPENAI_API_KEY` | — | Required for embeddings and answer generation |
-| `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` | Embedding model |
-| `OPENAI_CHAT_MODEL` | `gpt-4o-mini` | Chat/completion model |
+| `LLM_PROVIDER` | `auto` | `openai`, `google`, or `auto` (OpenAI first, Google on quota errors) |
+| `OPENAI_API_KEY` | — | OpenAI API key for embeddings and chat |
+| `GOOGLE_API_KEY` | — | Google Gemini API key (fallback or primary) |
+| `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` | OpenAI embedding model |
+| `OPENAI_CHAT_MODEL` | `gpt-4o-mini` | OpenAI chat model |
+| `GOOGLE_EMBEDDING_MODEL` | `text-embedding-004` | Google embedding model |
+| `GOOGLE_CHAT_MODEL` | `gemini-2.0-flash` | Google chat model |
 | `DATABASE_URL` | `sqlite:///./atlas.db` | Database connection string |
 | `CHUNK_SIZE` | `800` | Characters per text chunk |
 | `CHUNK_OVERLAP` | `150` | Overlap between chunks |

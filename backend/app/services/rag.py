@@ -10,13 +10,14 @@ from app.config import settings
 from app.models import Chunk, Domain, Project, Source, WebPage
 from app.schemas import Citation, SearchResponse
 from app.services.activity_log import log_exception
-from app.services.embeddings import (
-    cosine_similarity,
-    deserialize_embedding,
-    embed_texts,
-    get_openai_client,
-)
+from app.services.embeddings import cosine_similarity, deserialize_embedding
 from app.services.folder_sync import sync_scope_from_disk
+from app.services.llm_provider import (
+    embed_query,
+    generate_chat,
+    get_embedding_provider_name,
+    is_ai_configured,
+)
 from app.services.scope import count_chunks_in_scope, ensure_indexed_for_scope, get_pages_in_scope
 
 SYSTEM_PROMPT = """You are Atlas, an enterprise knowledge assistant. Your role is to answer questions using ONLY the provided context passages from the organization's knowledge base.
@@ -124,6 +125,22 @@ def _build_filters(
     return filters
 
 
+def _chunk_query(
+    db: Session,
+    source_id: Optional[str],
+    domain_id: Optional[str],
+    project_id: Optional[str],
+    *,
+    current_provider_only: bool = True,
+):
+    query = db.query(Chunk)
+    if current_provider_only:
+        query = query.filter(Chunk.embedding_provider == get_embedding_provider_name())
+    for f in _build_filters(source_id, domain_id, project_id):
+        query = query.filter(f)
+    return query
+
+
 def _question_terms(question: str) -> List[str]:
     terms = re.findall(r"[a-z0-9]+", question.lower())
     return [t for t in terms if len(t) >= 2 and t not in _STOP_WORDS]
@@ -157,9 +174,9 @@ def keyword_retrieve_chunks(
     if not terms:
         return []
 
-    query = db.query(Chunk)
-    for f in _build_filters(source_id, domain_id, project_id):
-        query = query.filter(f)
+    query = _chunk_query(
+        db, source_id, domain_id, project_id, current_provider_only=False
+    )
     chunks = query.all()
     if not chunks:
         return []
@@ -193,14 +210,12 @@ def retrieve_chunks(
     top_k: Optional[int] = None,
 ) -> List[Tuple[Chunk, float, WebPage, Project, Domain, Source]]:
     k = top_k or settings.top_k_chunks
-    query = db.query(Chunk)
-    for f in _build_filters(source_id, domain_id, project_id):
-        query = query.filter(f)
+    query = _chunk_query(db, source_id, domain_id, project_id)
     chunks = query.all()
     if not chunks:
         return keyword_retrieve_chunks(db, question, source_id, domain_id, project_id, top_k)
 
-    query_embedding = embed_texts([question])[0]
+    query_embedding = embed_query(question)
     query_vec = np.array(query_embedding, dtype=np.float32)
 
     matrix = np.stack([deserialize_embedding(c.embedding) for c in chunks])
@@ -244,8 +259,10 @@ def _empty_scope_message(
         return (
             "I could not find sufficient information in the knowledge base to answer this question. "
             f"Found {pages_in_scope} page(s) in scope but none are indexed for search. "
-            "This usually means OpenAI embedding failed during sync — check the Logs page and "
-            f"ensure OPENAI_API_KEY is set in backend/.env.{warning_hint}"
+            "This usually means embedding failed during sync — check the Logs page and "
+            "ensure OPENAI_API_KEY and/or GOOGLE_API_KEY is set in backend/.env. "
+            "Use LLM_PROVIDER=auto to fall back to Google when OpenAI quota is exceeded."
+            f"{warning_hint}"
         )
 
     return (
@@ -334,7 +351,12 @@ def generate_answer(
             retrieved = []
 
         if not retrieved:
-            msg = f"Search failed while connecting to OpenAI for embeddings: {exc}.{SSL_HELP}"
+            msg = (
+                f"Search failed while generating embeddings: {exc}. "
+                "Set OPENAI_API_KEY and/or GOOGLE_API_KEY in backend/.env. "
+                "Use LLM_PROVIDER=auto to fall back when OpenAI quota is exceeded."
+                f"{SSL_HELP}"
+            )
             return _error_response(
                 msg,
                 folder_paths,
@@ -385,10 +407,10 @@ Question: {question}
 
 Answer the question using only the context above. Include inline citations [1], [2], etc."""
 
-    client = get_openai_client()
-    if not client:
+    if not is_ai_configured():
         return _error_response(
-            "OpenAI API key is not configured. Please set OPENAI_API_KEY in backend/.env.",
+            "No AI provider is configured. Set OPENAI_API_KEY and/or GOOGLE_API_KEY in backend/.env. "
+            "Use LLM_PROVIDER=openai, google, or auto.",
             folder_paths,
             files_synced,
             pages_in_scope,
@@ -397,24 +419,21 @@ Answer the question using only the context above. Include inline citations [1], 
         )
 
     try:
-        response = client.chat.completions.create(
-            model=settings.openai_chat_model,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.1,
-        )
-        answer = response.choices[0].message.content or ""
+        answer, _provider_used = generate_chat(SYSTEM_PROMPT, user_prompt)
     except Exception as exc:
         log_exception(
-            "Search OpenAI chat",
+            "Search chat generation",
             exc,
             page="Ask",
             endpoint="/api/search",
             db=db,
         )
-        msg = f"Search failed while generating the answer via OpenAI: {exc}.{SSL_HELP}"
+        msg = (
+            f"Search failed while generating the answer: {exc}. "
+            "Set OPENAI_API_KEY and/or GOOGLE_API_KEY in backend/.env. "
+            "Use LLM_PROVIDER=auto to fall back when OpenAI quota is exceeded."
+            f"{SSL_HELP}"
+        )
         return _error_response(
             msg,
             folder_paths,
