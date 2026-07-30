@@ -17,6 +17,7 @@ This folder contains the full POC proposal. Read in the order below.
 | 1 | [`01-executive-summary.md`](./01-executive-summary.md) | Executives, sponsors | The problem, the proposed solution, value, and the ask — in one read. |
 | 2 | [`02-architecture.md`](./02-architecture.md) | Architects, engineering leads, security | The full technical and architectural design: components, data flow, scalability, extensibility, security, and the technology stack. |
 | 3 | [`03-poc-plan.md`](./03-poc-plan.md) | Delivery leads, sponsors | POC scope, phased plan, success criteria, evaluation method, cost, risks, and team model. |
+| 4 | [`04-technical-analysis.md`](./04-technical-analysis.md) | Engineering leads, architects | Repository inventory, build toolchain analysis, platform synthesis, gap analysis, and implementation recommendations. |
 
 A companion **one-page brief** for circulation is at
 [`one-pager.md`](./one-pager.md).
