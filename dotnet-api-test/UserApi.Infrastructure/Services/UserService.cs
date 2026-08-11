@@ -11,7 +11,7 @@ namespace UserApi.Infrastructure.Services
     /// <summary>
     /// User application service with encryption of sensitive fields and DTO mapping.
     /// </summary>
-    public sealed class UserService : BaseService, IUserService
+    public class UserService : BaseService, IUserService
     {
         private readonly IUserRepository _userRepository;
         private readonly IEncryptionService _encryptionService;
