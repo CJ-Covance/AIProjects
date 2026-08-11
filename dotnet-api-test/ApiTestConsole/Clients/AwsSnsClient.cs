@@ -1,7 +1,10 @@
 using System;
+using System.IO;
 using Amazon;
 using Amazon.Runtime;
 using Amazon.Runtime.CredentialManagement;
+using Amazon.SecurityToken;
+using Amazon.SecurityToken.Model;
 using Amazon.SimpleNotificationService;
 using Amazon.SimpleNotificationService.Model;
 using ApiTestConsole.Helpers;
@@ -10,7 +13,7 @@ using ApiTestConsole.Models;
 namespace ApiTestConsole.Clients
 {
     /// <summary>
-    /// Calls AWS SNS Publish using profile name and/or explicit credentials (equivalent to AWS CLI --profile).
+    /// Calls AWS SNS Publish using the local .aws\config + .aws\credentials profile (same as AWS CLI).
     /// </summary>
     public sealed class AwsSnsClient
     {
@@ -23,12 +26,60 @@ namespace ApiTestConsole.Clients
         }
 
         /// <summary>
-        /// Publishes a message to an SNS topic.
-        /// Credentials resolution order:
-        /// 1) Access Key + Secret Key (+ optional Session Token) from UI
-        /// 2) Named profile from %USERPROFILE%\.aws\credentials / .aws\config (same as AWS CLI)
+        /// Verifies profile credentials (aws sts get-caller-identity --profile name).
         /// </summary>
+        public AwsProfileVerifyResult VerifyProfile(string profileName, string awsConfigFolder, string region)
+        {
+            var localProfile = (profileName ?? string.Empty).Trim();
+            var localFolder = NormalizeAwsFolder(awsConfigFolder);
+            var localRegion = (region ?? string.Empty).Trim();
+
+            if (string.IsNullOrWhiteSpace(localProfile))
+            {
+                throw new ArgumentException("Profile name is required.", "profileName");
+            }
+
+            if (string.IsNullOrWhiteSpace(localRegion))
+            {
+                throw new ArgumentException("Region is required.", "region");
+            }
+
+            LogAwsFilePaths(localFolder);
+            AWSCredentials credentials = LoadProfileCredentials(localProfile, localFolder);
+            var regionEndpoint = RegionEndpoint.GetBySystemName(localRegion);
+
+            _logger.Info(string.Format("Step: Verifying profile '{0}' via STS GetCallerIdentity.", localProfile));
+            using (var stsClient = new AmazonSecurityTokenServiceClient(credentials, regionEndpoint))
+            {
+                try
+                {
+                    GetCallerIdentityResponse response = stsClient.GetCallerIdentity(new GetCallerIdentityRequest());
+                    _logger.Info(string.Format(
+                        "Step: Profile verified. Account={0}, Arn={1}.",
+                        response.Account,
+                        response.Arn));
+
+                    return new AwsProfileVerifyResult
+                    {
+                        ProfileName = localProfile,
+                        Account = response.Account,
+                        Arn = response.Arn,
+                        UserId = response.UserId,
+                        ConfigFolder = localFolder,
+                        ConfigFile = AwsConfigHelper.GetConfigFilePath(localFolder),
+                        CredentialsFile = AwsConfigHelper.GetCredentialsFilePath(localFolder)
+                    };
+                }
+                catch (AmazonServiceException ex)
+                {
+                    throw BuildAwsException("Profile verification rejected by AWS.", ex);
+                }
+            }
+        }
+
         public AwsSnsPublishResult PublishMessage(
+            bool useAwsConfigFile,
+            string awsConfigFolder,
             string profileName,
             string accessKey,
             string secretKey,
@@ -37,6 +88,7 @@ namespace ApiTestConsole.Clients
             string topicArn,
             string message)
         {
+            var localFolder = NormalizeAwsFolder(awsConfigFolder);
             var localProfileName = (profileName ?? string.Empty).Trim();
             var localAccessKey = (accessKey ?? string.Empty).Trim();
             var localSecretKey = (secretKey ?? string.Empty).Trim();
@@ -46,19 +98,21 @@ namespace ApiTestConsole.Clients
             var localMessage = message ?? string.Empty;
 
             _logger.Info(string.Format(
-                "Step: SNS publish started. Profile={0}, Region={1}, Topic={2}.",
+                "Step: SNS publish started. UseAwsConfig={0}, Profile={1}, Region={2}.",
+                useAwsConfigFile,
                 localProfileName,
-                localRegion,
-                localTopicArn));
+                localRegion));
 
             ValidateInputs(localProfileName, localRegion, localTopicArn, localMessage);
             ValidateRegionMatchesTopicArn(localRegion, localTopicArn);
 
-            AWSCredentials credentials = ResolveCredentials(
-                localProfileName,
-                localAccessKey,
-                localSecretKey,
-                localSessionToken);
+            AWSCredentials credentials = useAwsConfigFile
+                ? LoadProfileCredentials(localProfileName, localFolder)
+                : LoadManualCredentials(localAccessKey, localSecretKey, localSessionToken);
+
+            var credentialSource = useAwsConfigFile
+                ? string.Format("AWS .aws profile ({0})", localProfileName)
+                : "Manual Access Key";
 
             RegionEndpoint regionEndpoint = RegionEndpoint.GetBySystemName(localRegion);
 
@@ -85,7 +139,8 @@ namespace ApiTestConsole.Clients
                         ProfileName = localProfileName,
                         Region = localRegion,
                         TopicArn = localTopicArn,
-                        CredentialSource = DescribeCredentialSource(localAccessKey, localSecretKey)
+                        CredentialSource = credentialSource,
+                        ConfigFolder = localFolder
                     };
                 }
                 catch (AmazonServiceException ex)
@@ -99,59 +154,90 @@ namespace ApiTestConsole.Clients
             }
         }
 
-        private AWSCredentials ResolveCredentials(
-            string profileName,
-            string accessKey,
-            string secretKey,
-            string sessionToken)
+        private AWSCredentials LoadProfileCredentials(string profileName, string awsConfigFolder)
         {
-            if (!string.IsNullOrWhiteSpace(accessKey) && !string.IsNullOrWhiteSpace(secretKey))
-            {
-                _logger.Info("Step: Using Access Key + Secret Key from UI.");
-                if (!string.IsNullOrWhiteSpace(sessionToken))
-                {
-                    _logger.Info("Step: Session Token supplied — using temporary credentials.");
-                    return new SessionAWSCredentials(accessKey, secretKey, sessionToken);
-                }
+            LogAwsFilePaths(awsConfigFolder);
 
-                return new BasicAWSCredentials(accessKey, secretKey);
+            var credentialsFile = AwsConfigHelper.GetCredentialsFilePath(awsConfigFolder);
+            if (!File.Exists(credentialsFile) && !AwsConfigHelper.ConfigFileExists(awsConfigFolder))
+            {
+                throw new InvalidOperationException(string.Format(
+                    "AWS config folder not found or empty:{0}{0}  Folder: {1}{0}  Expected: {2}{0}  Expected: {3}{0}{0}" +
+                    "Create these files (same as AWS CLI) or update the AWS Config Folder path in the UI.",
+                    Environment.NewLine,
+                    awsConfigFolder,
+                    AwsConfigHelper.GetConfigFilePath(awsConfigFolder),
+                    credentialsFile));
             }
 
             _logger.Info(string.Format(
-                "Step: Access Key not supplied — loading profile '{0}' from AWS credentials file (CLI style).",
+                "Step: Loading profile '{0}' from AWS CLI files (config + credentials).",
                 profileName));
 
-            var chain = new CredentialProfileStoreChain();
+            var chain = new CredentialProfileStoreChain(credentialsFile);
             AWSCredentials profileCredentials;
             if (chain.TryGetAWSCredentials(profileName, out profileCredentials))
             {
-                _logger.Info(string.Format(
-                    "Step: Profile '{0}' loaded from %USERPROFILE%\\.aws\\credentials or .aws\\config.",
-                    profileName));
+                _logger.Info(string.Format("Step: Profile '{0}' loaded successfully.", profileName));
                 return profileCredentials;
             }
 
             throw new InvalidOperationException(string.Format(
-                "Could not load AWS credentials for profile '{0}'.{1}{1}" +
-                "Option A — leave Access Key empty and configure CLI profile:{1}" +
-                "  %USERPROFILE%\\.aws\\credentials  (same file used by: aws sns publish --profile {0}){1}{1}" +
-                "Option B — enter Access Key + Secret Key in the UI.{1}" +
-                "  If your keys are temporary (STS/SSO), also enter Session Token.{1}{1}" +
-                "Option C — run: aws configure --profile {0}",
+                "Profile '{0}' was not found in:{1}  {2}{1}  {3}{1}{1}" +
+                "Ensure the profile exists (run: aws configure list-profiles) and matches AWS CLI.",
                 profileName,
-                Environment.NewLine));
+                Environment.NewLine,
+                AwsConfigHelper.GetConfigFilePath(awsConfigFolder),
+                credentialsFile));
         }
 
-        private static string DescribeCredentialSource(string accessKey, string secretKey)
+        private AWSCredentials LoadManualCredentials(string accessKey, string secretKey, string sessionToken)
         {
-            return !string.IsNullOrWhiteSpace(accessKey) && !string.IsNullOrWhiteSpace(secretKey)
-                ? "UI (Access Key)"
-                : "AWS credentials file profile";
+            if (string.IsNullOrWhiteSpace(accessKey) || string.IsNullOrWhiteSpace(secretKey))
+            {
+                throw new ArgumentException(
+                    "Access Key and Secret Key are required when not using the .aws config folder.",
+                    "accessKey");
+            }
+
+            _logger.Info("Step: Using manual Access Key + Secret Key from UI.");
+            if (!string.IsNullOrWhiteSpace(sessionToken))
+            {
+                _logger.Info("Step: Session Token supplied — using temporary credentials.");
+                return new SessionAWSCredentials(accessKey, secretKey, sessionToken);
+            }
+
+            return new BasicAWSCredentials(accessKey, secretKey);
+        }
+
+        private void LogAwsFilePaths(string awsConfigFolder)
+        {
+            var configPath = AwsConfigHelper.GetConfigFilePath(awsConfigFolder);
+            var credentialsPath = AwsConfigHelper.GetCredentialsFilePath(awsConfigFolder);
+
+            _logger.Info(string.Format("Step: AWS config folder = {0}", awsConfigFolder));
+            _logger.Info(string.Format(
+                "Step: config file = {0} ({1})",
+                configPath,
+                File.Exists(configPath) ? "found" : "missing"));
+            _logger.Info(string.Format(
+                "Step: credentials file = {0} ({1})",
+                credentialsPath,
+                File.Exists(credentialsPath) ? "found" : "missing"));
+        }
+
+        private static string NormalizeAwsFolder(string awsConfigFolder)
+        {
+            if (!string.IsNullOrWhiteSpace(awsConfigFolder))
+            {
+                return awsConfigFolder.Trim().TrimEnd('\\', '/');
+            }
+
+            return AwsConfigHelper.GetAwsFolder();
         }
 
         private static void ValidateRegionMatchesTopicArn(string region, string topicArn)
         {
-            // arn:aws:sns:us-east-1:763216446258:topic-name
             var parts = topicArn.Split(':');
             if (parts.Length >= 4 && parts[0] == "arn" && parts[2] == "sns")
             {
@@ -170,11 +256,7 @@ namespace ApiTestConsole.Clients
         private InvalidOperationException BuildAwsException(string prefix, AmazonServiceException ex)
         {
             var details = string.Format(
-                "{0}{1}{1}ErrorCode: {2}{1}HTTP Status: {3}{1}Message: {4}{1}RequestId: {5}{1}{1}Common fixes:{1}" +
-                "- NotAuthorized / AccessDenied: IAM user/role needs sns:Publish on the topic{1}" +
-                "- InvalidClientTokenId / SignatureDoesNotMatch: wrong Access Key, Secret Key, or Session Token{1}" +
-                "- ExpiredToken: refresh temporary credentials or leave keys empty to use CLI profile{1}" +
-                "- OptInRequired: SNS may not be enabled for the account in this region",
+                "{0}{1}{1}ErrorCode: {2}{1}HTTP Status: {3}{1}Message: {4}{1}RequestId: {5}",
                 prefix,
                 Environment.NewLine,
                 ex.ErrorCode ?? "(none)",

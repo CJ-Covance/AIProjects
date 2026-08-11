@@ -8,6 +8,14 @@ namespace ApiTestConsole
         private System.Windows.Forms.TabPage tabUserApi;
         private System.Windows.Forms.TabPage tabAwsApi;
         private System.Windows.Forms.TabPage tabAwsSns;
+        private System.Windows.Forms.GroupBox grpAwsCliConfig;
+        private System.Windows.Forms.Label lblAwsConfigFolder;
+        private System.Windows.Forms.TextBox txtAwsConfigFolder;
+        private System.Windows.Forms.Label lblAwsConfigFileStatus;
+        private System.Windows.Forms.Label lblAwsCredentialsFileStatus;
+        private System.Windows.Forms.CheckBox chkUseAwsConfigFile;
+        private System.Windows.Forms.Button btnVerifyProfile;
+        private System.Windows.Forms.GroupBox grpManualCredentials;
         private System.Windows.Forms.GroupBox grpUserInput;
         private System.Windows.Forms.Label lblUsername;
         private System.Windows.Forms.TextBox txtUsername;
@@ -85,6 +93,14 @@ namespace ApiTestConsole
             this.lblSnsStatus = new System.Windows.Forms.Label();
             this.btnSnsPublish = new System.Windows.Forms.Button();
             this.grpSnsProfile = new System.Windows.Forms.GroupBox();
+            this.grpManualCredentials = new System.Windows.Forms.GroupBox();
+            this.grpAwsCliConfig = new System.Windows.Forms.GroupBox();
+            this.btnVerifyProfile = new System.Windows.Forms.Button();
+            this.chkUseAwsConfigFile = new System.Windows.Forms.CheckBox();
+            this.lblAwsCredentialsFileStatus = new System.Windows.Forms.Label();
+            this.lblAwsConfigFileStatus = new System.Windows.Forms.Label();
+            this.txtAwsConfigFolder = new System.Windows.Forms.TextBox();
+            this.lblAwsConfigFolder = new System.Windows.Forms.Label();
             this.txtSnsMessage = new System.Windows.Forms.TextBox();
             this.lblSnsMessage = new System.Windows.Forms.Label();
             this.txtSnsTopicArn = new System.Windows.Forms.TextBox();
@@ -117,6 +133,8 @@ namespace ApiTestConsole
             this.grpUserInput.SuspendLayout();
             this.tabAwsApi.SuspendLayout();
             this.tabAwsSns.SuspendLayout();
+            this.grpAwsCliConfig.SuspendLayout();
+            this.grpManualCredentials.SuspendLayout();
             this.grpSnsProfile.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitRight)).BeginInit();
             this.splitRight.Panel1.SuspendLayout();
@@ -370,6 +388,7 @@ namespace ApiTestConsole
             this.tabAwsSns.Controls.Add(this.lblSnsStatus);
             this.tabAwsSns.Controls.Add(this.btnSnsPublish);
             this.tabAwsSns.Controls.Add(this.grpSnsProfile);
+            this.tabAwsSns.Controls.Add(this.grpAwsCliConfig);
             this.tabAwsSns.Location = new System.Drawing.Point(4, 29);
             this.tabAwsSns.Name = "tabAwsSns";
             this.tabAwsSns.Padding = new System.Windows.Forms.Padding(3);
@@ -378,10 +397,87 @@ namespace ApiTestConsole
             this.tabAwsSns.Text = "AWS SNS Publish";
             this.tabAwsSns.UseVisualStyleBackColor = true;
             // 
+            // grpAwsCliConfig
+            // 
+            this.grpAwsCliConfig.Controls.Add(this.btnVerifyProfile);
+            this.grpAwsCliConfig.Controls.Add(this.chkUseAwsConfigFile);
+            this.grpAwsCliConfig.Controls.Add(this.lblAwsCredentialsFileStatus);
+            this.grpAwsCliConfig.Controls.Add(this.lblAwsConfigFileStatus);
+            this.grpAwsCliConfig.Controls.Add(this.txtAwsConfigFolder);
+            this.grpAwsCliConfig.Controls.Add(this.lblAwsConfigFolder);
+            this.grpAwsCliConfig.Dock = System.Windows.Forms.DockStyle.Top;
+            this.grpAwsCliConfig.Location = new System.Drawing.Point(3, 3);
+            this.grpAwsCliConfig.Name = "grpAwsCliConfig";
+            this.grpAwsCliConfig.Size = new System.Drawing.Size(366, 168);
+            this.grpAwsCliConfig.TabIndex = 3;
+            this.grpAwsCliConfig.TabStop = false;
+            this.grpAwsCliConfig.Text = "AWS CLI Config Folder (.aws)";
+            // 
+            // lblAwsConfigFolder
+            // 
+            this.lblAwsConfigFolder.AutoSize = true;
+            this.lblAwsConfigFolder.Location = new System.Drawing.Point(12, 30);
+            this.lblAwsConfigFolder.Name = "lblAwsConfigFolder";
+            this.lblAwsConfigFolder.Size = new System.Drawing.Size(112, 24);
+            this.lblAwsConfigFolder.TabIndex = 0;
+            this.lblAwsConfigFolder.Text = "Config Folder";
+            // 
+            // txtAwsConfigFolder
+            // 
+            this.txtAwsConfigFolder.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.txtAwsConfigFolder.Location = new System.Drawing.Point(12, 56);
+            this.txtAwsConfigFolder.Name = "txtAwsConfigFolder";
+            this.txtAwsConfigFolder.Size = new System.Drawing.Size(342, 29);
+            this.txtAwsConfigFolder.TabIndex = 1;
+            this.txtAwsConfigFolder.Leave += new System.EventHandler(this.txtAwsConfigFolder_Leave);
+            // 
+            // lblAwsConfigFileStatus
+            // 
+            this.lblAwsConfigFileStatus.AutoSize = true;
+            this.lblAwsConfigFileStatus.Location = new System.Drawing.Point(12, 92);
+            this.lblAwsConfigFileStatus.Name = "lblAwsConfigFileStatus";
+            this.lblAwsConfigFileStatus.Size = new System.Drawing.Size(118, 24);
+            this.lblAwsConfigFileStatus.TabIndex = 2;
+            this.lblAwsConfigFileStatus.Text = "config: checking";
+            // 
+            // lblAwsCredentialsFileStatus
+            // 
+            this.lblAwsCredentialsFileStatus.AutoSize = true;
+            this.lblAwsCredentialsFileStatus.Location = new System.Drawing.Point(160, 92);
+            this.lblAwsCredentialsFileStatus.Name = "lblAwsCredentialsFileStatus";
+            this.lblAwsCredentialsFileStatus.Size = new System.Drawing.Size(156, 24);
+            this.lblAwsCredentialsFileStatus.TabIndex = 3;
+            this.lblAwsCredentialsFileStatus.Text = "credentials: checking";
+            // 
+            // chkUseAwsConfigFile
+            // 
+            this.chkUseAwsConfigFile.AutoSize = true;
+            this.chkUseAwsConfigFile.Checked = true;
+            this.chkUseAwsConfigFile.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.chkUseAwsConfigFile.Location = new System.Drawing.Point(12, 122);
+            this.chkUseAwsConfigFile.Name = "chkUseAwsConfigFile";
+            this.chkUseAwsConfigFile.Size = new System.Drawing.Size(330, 28);
+            this.chkUseAwsConfigFile.TabIndex = 4;
+            this.chkUseAwsConfigFile.Text = "Use AWS CLI profile from .aws folder";
+            this.chkUseAwsConfigFile.UseVisualStyleBackColor = true;
+            this.chkUseAwsConfigFile.CheckedChanged += new System.EventHandler(this.chkUseAwsConfigFile_CheckedChanged);
+            // 
+            // btnVerifyProfile
+            // 
+            this.btnVerifyProfile.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnVerifyProfile.Location = new System.Drawing.Point(194, 118);
+            this.btnVerifyProfile.Name = "btnVerifyProfile";
+            this.btnVerifyProfile.Size = new System.Drawing.Size(160, 36);
+            this.btnVerifyProfile.TabIndex = 5;
+            this.btnVerifyProfile.Text = "Verify Profile";
+            this.btnVerifyProfile.UseVisualStyleBackColor = true;
+            this.btnVerifyProfile.Click += new System.EventHandler(this.btnVerifyProfile_Click);
+            // 
             // lblSnsStatus
             // 
             this.lblSnsStatus.AutoSize = true;
-            this.lblSnsStatus.Location = new System.Drawing.Point(16, 620);
+            this.lblSnsStatus.Location = new System.Drawing.Point(16, 608);
             this.lblSnsStatus.Name = "lblSnsStatus";
             this.lblSnsStatus.Size = new System.Drawing.Size(214, 24);
             this.lblSnsStatus.TabIndex = 2;
@@ -389,7 +485,7 @@ namespace ApiTestConsole
             // 
             // btnSnsPublish
             // 
-            this.btnSnsPublish.Location = new System.Drawing.Point(16, 560);
+            this.btnSnsPublish.Location = new System.Drawing.Point(16, 552);
             this.btnSnsPublish.Name = "btnSnsPublish";
             this.btnSnsPublish.Size = new System.Drawing.Size(338, 44);
             this.btnSnsPublish.TabIndex = 1;
@@ -405,25 +501,37 @@ namespace ApiTestConsole
             this.grpSnsProfile.Controls.Add(this.lblSnsTopicArn);
             this.grpSnsProfile.Controls.Add(this.txtSnsRegion);
             this.grpSnsProfile.Controls.Add(this.lblSnsRegion);
-            this.grpSnsProfile.Controls.Add(this.txtSnsSessionToken);
-            this.grpSnsProfile.Controls.Add(this.lblSnsSessionToken);
-            this.grpSnsProfile.Controls.Add(this.txtSnsSecretKey);
-            this.grpSnsProfile.Controls.Add(this.lblSnsSecretKey);
-            this.grpSnsProfile.Controls.Add(this.txtSnsAccessKey);
-            this.grpSnsProfile.Controls.Add(this.lblSnsAccessKey);
+            this.grpSnsProfile.Controls.Add(this.grpManualCredentials);
             this.grpSnsProfile.Controls.Add(this.txtSnsProfile);
             this.grpSnsProfile.Controls.Add(this.lblSnsProfile);
-            this.grpSnsProfile.Dock = System.Windows.Forms.DockStyle.Top;
-            this.grpSnsProfile.Location = new System.Drawing.Point(3, 3);
+            this.grpSnsProfile.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.grpSnsProfile.Location = new System.Drawing.Point(3, 174);
             this.grpSnsProfile.Name = "grpSnsProfile";
-            this.grpSnsProfile.Size = new System.Drawing.Size(366, 540);
+            this.grpSnsProfile.Size = new System.Drawing.Size(366, 370);
             this.grpSnsProfile.TabIndex = 0;
             this.grpSnsProfile.TabStop = false;
-            this.grpSnsProfile.Text = "AWS Profile && Credentials (leave keys empty to use CLI profile file)";
+            this.grpSnsProfile.Text = "SNS Publish Settings";
+            // 
+            // grpManualCredentials
+            // 
+            this.grpManualCredentials.Controls.Add(this.txtSnsSessionToken);
+            this.grpManualCredentials.Controls.Add(this.lblSnsSessionToken);
+            this.grpManualCredentials.Controls.Add(this.txtSnsSecretKey);
+            this.grpManualCredentials.Controls.Add(this.lblSnsSecretKey);
+            this.grpManualCredentials.Controls.Add(this.txtSnsAccessKey);
+            this.grpManualCredentials.Controls.Add(this.lblSnsAccessKey);
+            this.grpManualCredentials.Location = new System.Drawing.Point(12, 78);
+            this.grpManualCredentials.Name = "grpManualCredentials";
+            this.grpManualCredentials.Size = new System.Drawing.Size(342, 170);
+            this.grpManualCredentials.TabIndex = 13;
+            this.grpManualCredentials.TabStop = false;
+            this.grpManualCredentials.Text = "Manual credentials (optional override)";
             // 
             // txtSnsMessage
             // 
-            this.txtSnsMessage.Location = new System.Drawing.Point(120, 430);
+            this.txtSnsMessage.Location = new System.Drawing.Point(120, 310);
             this.txtSnsMessage.Multiline = true;
             this.txtSnsMessage.Name = "txtSnsMessage";
             this.txtSnsMessage.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
@@ -433,7 +541,7 @@ namespace ApiTestConsole
             // lblSnsMessage
             // 
             this.lblSnsMessage.AutoSize = true;
-            this.lblSnsMessage.Location = new System.Drawing.Point(16, 433);
+            this.lblSnsMessage.Location = new System.Drawing.Point(16, 313);
             this.lblSnsMessage.Name = "lblSnsMessage";
             this.lblSnsMessage.Size = new System.Drawing.Size(84, 24);
             this.lblSnsMessage.TabIndex = 10;
@@ -441,7 +549,7 @@ namespace ApiTestConsole
             // 
             // txtSnsTopicArn
             // 
-            this.txtSnsTopicArn.Location = new System.Drawing.Point(120, 360);
+            this.txtSnsTopicArn.Location = new System.Drawing.Point(120, 260);
             this.txtSnsTopicArn.Name = "txtSnsTopicArn";
             this.txtSnsTopicArn.Size = new System.Drawing.Size(220, 29);
             this.txtSnsTopicArn.TabIndex = 9;
@@ -449,7 +557,7 @@ namespace ApiTestConsole
             // lblSnsTopicArn
             // 
             this.lblSnsTopicArn.AutoSize = true;
-            this.lblSnsTopicArn.Location = new System.Drawing.Point(16, 363);
+            this.lblSnsTopicArn.Location = new System.Drawing.Point(16, 263);
             this.lblSnsTopicArn.Name = "lblSnsTopicArn";
             this.lblSnsTopicArn.Size = new System.Drawing.Size(88, 24);
             this.lblSnsTopicArn.TabIndex = 8;
@@ -457,7 +565,7 @@ namespace ApiTestConsole
             // 
             // txtSnsRegion
             // 
-            this.txtSnsRegion.Location = new System.Drawing.Point(120, 300);
+            this.txtSnsRegion.Location = new System.Drawing.Point(120, 210);
             this.txtSnsRegion.Name = "txtSnsRegion";
             this.txtSnsRegion.Size = new System.Drawing.Size(220, 29);
             this.txtSnsRegion.TabIndex = 7;
@@ -465,7 +573,7 @@ namespace ApiTestConsole
             // lblSnsRegion
             // 
             this.lblSnsRegion.AutoSize = true;
-            this.lblSnsRegion.Location = new System.Drawing.Point(16, 303);
+            this.lblSnsRegion.Location = new System.Drawing.Point(16, 213);
             this.lblSnsRegion.Name = "lblSnsRegion";
             this.lblSnsRegion.Size = new System.Drawing.Size(66, 24);
             this.lblSnsRegion.TabIndex = 6;
@@ -473,7 +581,7 @@ namespace ApiTestConsole
             // 
             // txtSnsSecretKey
             // 
-            this.txtSnsSecretKey.Location = new System.Drawing.Point(120, 210);
+            this.txtSnsSecretKey.Location = new System.Drawing.Point(120, 78);
             this.txtSnsSecretKey.Name = "txtSnsSecretKey";
             this.txtSnsSecretKey.PasswordChar = '*';
             this.txtSnsSecretKey.Size = new System.Drawing.Size(220, 29);
@@ -483,7 +591,7 @@ namespace ApiTestConsole
             // lblSnsSessionToken
             // 
             this.lblSnsSessionToken.AutoSize = true;
-            this.lblSnsSessionToken.Location = new System.Drawing.Point(16, 255);
+            this.lblSnsSessionToken.Location = new System.Drawing.Point(12, 118);
             this.lblSnsSessionToken.Name = "lblSnsSessionToken";
             this.lblSnsSessionToken.Size = new System.Drawing.Size(122, 24);
             this.lblSnsSessionToken.TabIndex = 12;
@@ -491,17 +599,17 @@ namespace ApiTestConsole
             // 
             // txtSnsSessionToken
             // 
-            this.txtSnsSessionToken.Location = new System.Drawing.Point(120, 252);
+            this.txtSnsSessionToken.Location = new System.Drawing.Point(120, 115);
             this.txtSnsSessionToken.Name = "txtSnsSessionToken";
             this.txtSnsSessionToken.PasswordChar = '*';
-            this.txtSnsSessionToken.Size = new System.Drawing.Size(220, 29);
+            this.txtSnsSessionToken.Size = new System.Drawing.Size(210, 29);
             this.txtSnsSessionToken.TabIndex = 6;
             this.txtSnsSessionToken.UseSystemPasswordChar = true;
             // 
             // lblSnsSecretKey
             // 
             this.lblSnsSecretKey.AutoSize = true;
-            this.lblSnsSecretKey.Location = new System.Drawing.Point(16, 213);
+            this.lblSnsSecretKey.Location = new System.Drawing.Point(12, 81);
             this.lblSnsSecretKey.Name = "lblSnsSecretKey";
             this.lblSnsSecretKey.Size = new System.Drawing.Size(94, 24);
             this.lblSnsSecretKey.TabIndex = 4;
@@ -517,7 +625,7 @@ namespace ApiTestConsole
             // lblSnsAccessKey
             // 
             this.lblSnsAccessKey.AutoSize = true;
-            this.lblSnsAccessKey.Location = new System.Drawing.Point(16, 153);
+            this.lblSnsAccessKey.Location = new System.Drawing.Point(12, 41);
             this.lblSnsAccessKey.Name = "lblSnsAccessKey";
             this.lblSnsAccessKey.Size = new System.Drawing.Size(98, 24);
             this.lblSnsAccessKey.TabIndex = 2;
@@ -533,7 +641,7 @@ namespace ApiTestConsole
             // lblSnsProfile
             // 
             this.lblSnsProfile.AutoSize = true;
-            this.lblSnsProfile.Location = new System.Drawing.Point(16, 93);
+            this.lblSnsProfile.Location = new System.Drawing.Point(16, 37);
             this.lblSnsProfile.Name = "lblSnsProfile";
             this.lblSnsProfile.Size = new System.Drawing.Size(106, 24);
             this.lblSnsProfile.TabIndex = 0;
@@ -631,6 +739,10 @@ namespace ApiTestConsole
             this.tabAwsApi.PerformLayout();
             this.tabAwsSns.ResumeLayout(false);
             this.tabAwsSns.PerformLayout();
+            this.grpAwsCliConfig.ResumeLayout(false);
+            this.grpAwsCliConfig.PerformLayout();
+            this.grpManualCredentials.ResumeLayout(false);
+            this.grpManualCredentials.PerformLayout();
             this.grpSnsProfile.ResumeLayout(false);
             this.grpSnsProfile.PerformLayout();
             this.splitRight.Panel1.ResumeLayout(false);

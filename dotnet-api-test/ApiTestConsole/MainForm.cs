@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using ApiTestConsole.Clients;
@@ -31,9 +32,113 @@ namespace ApiTestConsole
             _awsSnsClient = new AwsSnsClient(_logger);
 
             txtAwsPath.Text = ConfigHelper.GetAppSetting("AwsDefaultResourcePath", string.Empty);
-            LoadSnsDefaults();
+            InitializeAwsSnsTab();
             ConfigurePropertyGrid();
             _logger.Info("MainForm loaded. Ready for API testing.");
+        }
+
+        private void InitializeAwsSnsTab()
+        {
+            var awsFolder = AwsConfigHelper.GetAwsFolder();
+            txtAwsConfigFolder.Text = awsFolder;
+            chkUseAwsConfigFile.Checked = true;
+            UpdateAwsFileStatusLabels();
+            ApplyAwsCredentialMode();
+            LoadSnsDefaults();
+        }
+
+        private void LoadSnsDefaults()
+        {
+            txtSnsProfile.Text = ConfigHelper.GetAppSetting("AwsSnsProfileName", "labcorp-connector");
+            txtSnsRegion.Text = ConfigHelper.GetAppSetting("AwsSnsRegion", "us-east-1");
+            txtSnsTopicArn.Text = ConfigHelper.GetAppSetting(
+                "AwsSnsTopicArn",
+                "arn:aws:sns:us-east-1:763216446258:labcorpembark-receiving-topic-dev");
+            txtSnsMessage.Text = ConfigHelper.GetAppSetting("AwsSnsDefaultMessage", "preflig");
+        }
+
+        private void UpdateAwsFileStatusLabels()
+        {
+            var folder = txtAwsConfigFolder.Text.Trim();
+            if (string.IsNullOrWhiteSpace(folder))
+            {
+                folder = AwsConfigHelper.GetAwsFolder();
+                txtAwsConfigFolder.Text = folder;
+            }
+
+            var configPath = AwsConfigHelper.GetConfigFilePath(folder);
+            var credentialsPath = AwsConfigHelper.GetCredentialsFilePath(folder);
+
+            lblAwsConfigFileStatus.Text = string.Format(
+                "config: {0}",
+                File.Exists(configPath) ? "found" : "missing");
+            lblAwsConfigFileStatus.ForeColor = File.Exists(configPath) ? Color.DarkGreen : Color.DarkRed;
+
+            lblAwsCredentialsFileStatus.Text = string.Format(
+                "credentials: {0}",
+                File.Exists(credentialsPath) ? "found" : "missing");
+            lblAwsCredentialsFileStatus.ForeColor = File.Exists(credentialsPath) ? Color.DarkGreen : Color.DarkRed;
+        }
+
+        private void ApplyAwsCredentialMode()
+        {
+            var useAwsConfig = chkUseAwsConfigFile.Checked;
+            grpManualCredentials.Enabled = !useAwsConfig;
+            txtSnsAccessKey.Enabled = !useAwsConfig;
+            txtSnsSecretKey.Enabled = !useAwsConfig;
+            txtSnsSessionToken.Enabled = !useAwsConfig;
+
+            if (useAwsConfig)
+            {
+                txtSnsAccessKey.Clear();
+                txtSnsSecretKey.Clear();
+                txtSnsSessionToken.Clear();
+            }
+        }
+
+        private void chkUseAwsConfigFile_CheckedChanged(object sender, EventArgs e)
+        {
+            ApplyAwsCredentialMode();
+            _logger.Info(string.Format(
+                "UI: Use AWS .aws config = {0}",
+                chkUseAwsConfigFile.Checked));
+        }
+
+        private void txtAwsConfigFolder_Leave(object sender, EventArgs e)
+        {
+            UpdateAwsFileStatusLabels();
+        }
+
+        private void btnVerifyProfile_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                _logger.Info("UI: Verify Profile button clicked.");
+                UseWaitCursor = true;
+                btnVerifyProfile.Enabled = false;
+
+                var result = _awsSnsClient.VerifyProfile(
+                    txtSnsProfile.Text.Trim(),
+                    txtAwsConfigFolder.Text.Trim(),
+                    txtSnsRegion.Text.Trim());
+
+                BindProfileVerifyResult(result);
+                lblSnsStatus.Text = string.Format("Profile OK — Account {0}", result.Account);
+                lblSnsStatus.ForeColor = Color.DarkGreen;
+                _logger.Info(string.Format("UI: Profile verified. Arn={0}.", result.Arn));
+            }
+            catch (Exception ex)
+            {
+                lblSnsStatus.Text = "Profile verification failed";
+                lblSnsStatus.ForeColor = Color.DarkRed;
+                _logger.Error("UI: Profile verification failed.", ex);
+                MessageBox.Show(ex.Message, "Verify Profile Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                UseWaitCursor = false;
+                btnVerifyProfile.Enabled = true;
+            }
         }
 
         private void ConfigurePropertyGrid()
@@ -59,18 +164,6 @@ namespace ApiTestConsole
             dgvAwsProperties.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
         }
 
-        private void LoadSnsDefaults()
-        {
-            txtSnsProfile.Text = ConfigHelper.GetAppSetting("AwsSnsProfileName", "labcorp-connector");
-            txtSnsAccessKey.Text = ConfigHelper.GetAppSetting("AwsSnsAccessKey", string.Empty);
-            txtSnsSecretKey.Text = ConfigHelper.GetAppSetting("AwsSnsSecretKey", string.Empty);
-            txtSnsRegion.Text = ConfigHelper.GetAppSetting("AwsSnsRegion", "us-east-1");
-            txtSnsTopicArn.Text = ConfigHelper.GetAppSetting(
-                "AwsSnsTopicArn",
-                "arn:aws:sns:us-east-1:763216446258:labcorpembark-receiving-topic-dev");
-            txtSnsMessage.Text = ConfigHelper.GetAppSetting("AwsSnsDefaultMessage", "preflig");
-        }
-
         private void BindSnsResult(AwsSnsPublishResult result)
         {
             propertyGridUser.SelectedObject = result;
@@ -84,7 +177,27 @@ namespace ApiTestConsole
                 new PropertyValueRow { Property = "ProfileName", Value = result.ProfileName },
                 new PropertyValueRow { Property = "Region", Value = result.Region },
                 new PropertyValueRow { Property = "TopicArn", Value = result.TopicArn },
-                new PropertyValueRow { Property = "CredentialSource", Value = result.CredentialSource ?? string.Empty }
+                new PropertyValueRow { Property = "CredentialSource", Value = result.CredentialSource ?? string.Empty },
+                new PropertyValueRow { Property = "ConfigFolder", Value = result.ConfigFolder ?? string.Empty }
+            };
+
+            dgvAwsProperties.DataSource = new BindingList<PropertyValueRow>(rows.ToList());
+        }
+
+        private void BindProfileVerifyResult(AwsProfileVerifyResult result)
+        {
+            propertyGridUser.SelectedObject = result;
+            propertyGridUser.Refresh();
+
+            var rows = new[]
+            {
+                new PropertyValueRow { Property = "Account", Value = result.Account },
+                new PropertyValueRow { Property = "Arn", Value = result.Arn },
+                new PropertyValueRow { Property = "UserId", Value = result.UserId },
+                new PropertyValueRow { Property = "ProfileName", Value = result.ProfileName },
+                new PropertyValueRow { Property = "ConfigFolder", Value = result.ConfigFolder },
+                new PropertyValueRow { Property = "ConfigFile", Value = result.ConfigFile },
+                new PropertyValueRow { Property = "CredentialsFile", Value = result.CredentialsFile }
             };
 
             dgvAwsProperties.DataSource = new BindingList<PropertyValueRow>(rows.ToList());
@@ -242,7 +355,10 @@ namespace ApiTestConsole
                 UseWaitCursor = true;
                 btnSnsPublish.Enabled = false;
 
-                // Local variables passed from UI to setup AWS profile credentials
+                UpdateAwsFileStatusLabels();
+
+                var useAwsConfig = chkUseAwsConfigFile.Checked;
+                var awsConfigFolder = txtAwsConfigFolder.Text.Trim();
                 var profileName = txtSnsProfile.Text.Trim();
                 var accessKey = txtSnsAccessKey.Text.Trim();
                 var secretKey = txtSnsSecretKey.Text.Trim();
@@ -252,6 +368,8 @@ namespace ApiTestConsole
                 var message = txtSnsMessage.Text;
 
                 var result = _awsSnsClient.PublishMessage(
+                    useAwsConfig,
+                    awsConfigFolder,
                     profileName,
                     accessKey,
                     secretKey,

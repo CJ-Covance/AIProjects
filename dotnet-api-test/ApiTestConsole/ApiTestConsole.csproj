@@ -46,6 +46,9 @@
     <Reference Include="AWSSDK.SimpleNotificationService, Version=3.3.0.0, Culture=neutral, PublicKeyToken=885c28607f98e604, processorArchitecture=MSIL">
       <HintPath>..\packages\AWSSDK.SimpleNotificationService.3.7.400.57\lib\net45\AWSSDK.SimpleNotificationService.dll</HintPath>
     </Reference>
+    <Reference Include="AWSSDK.SecurityToken, Version=3.3.0.0, Culture=neutral, PublicKeyToken=885c28607f98e604, processorArchitecture=MSIL">
+      <HintPath>..\packages\AWSSDK.SecurityToken.3.7.400.57\lib\net45\AWSSDK.SecurityToken.dll</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
@@ -55,8 +58,10 @@
     <Compile Include="Clients\AwsApiClient.cs" />
     <Compile Include="Clients\AwsSnsClient.cs" />
     <Compile Include="Helpers\UiLogger.cs" />
+    <Compile Include="Helpers\AwsConfigHelper.cs" />
     <Compile Include="Models\PropertyValueRow.cs" />
     <Compile Include="Models\AwsSnsPublishResult.cs" />
+    <Compile Include="Models\AwsProfileVerifyResult.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="MainForm.cs">
       <SubType>Form</SubType>
