@@ -98,3 +98,24 @@ The **User API** tab exercises CRUD against the local Web API and displays resul
 ## Build Notes
 
 This solution targets **.NET Framework 4.8 only** (not .NET Core/.NET 5+). Build and run on Windows with Visual Studio.
+
+## Troubleshooting: `UserApi.Web` fails to load
+
+If Visual Studio shows:
+
+> The imported project `Microsoft.WebApplication.targets` was not found
+
+**Cause:** `UserApi.Web` is an **IIS-hosted ASP.NET Web API** project. That targets file ships with the Visual Studio **ASP.NET and web development** workload.
+
+**Fix (pick one):**
+
+1. **Install the workload (recommended for full Web API hosting):**
+   - Visual Studio Installer → Modify → check **ASP.NET and web development** → Install
+   - Reopen the solution
+
+2. **Work with the console app only:**
+   - In Solution Explorer, right-click **ApiTestConsole** → **Set as Startup Project**
+   - The console calls AWS directly via `AwsApiClient` (IMP tab) and can call a separately hosted User API
+   - `UserApi.Web` can remain unloaded if you do not need the local REST server
+
+**Where is the console code?** It is in the **`ApiTestConsole`** project (`MainForm.cs`, `Program.cs`), not in `UserApi.Web`.
