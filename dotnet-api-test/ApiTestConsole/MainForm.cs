@@ -19,6 +19,7 @@ namespace ApiTestConsole
         private readonly UiLogger _logger;
         private readonly UserApiClient _userApiClient;
         private readonly AwsApiClient _awsApiClient;
+        private readonly AwsSnsClient _awsSnsClient;
         private int _lastCreatedUserId;
 
         public MainForm()
@@ -27,8 +28,10 @@ namespace ApiTestConsole
             _logger = new UiLogger(txtLog);
             _userApiClient = new UserApiClient(_logger);
             _awsApiClient = new AwsApiClient(_logger);
+            _awsSnsClient = new AwsSnsClient(_logger);
 
             txtAwsPath.Text = ConfigHelper.GetAppSetting("AwsDefaultResourcePath", string.Empty);
+            LoadSnsDefaults();
             ConfigurePropertyGrid();
             _logger.Info("MainForm loaded. Ready for API testing.");
         }
@@ -54,6 +57,36 @@ namespace ApiTestConsole
             dgvAwsProperties.ReadOnly = true;
             dgvAwsProperties.AllowUserToAddRows = false;
             dgvAwsProperties.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+        }
+
+        private void LoadSnsDefaults()
+        {
+            txtSnsProfile.Text = ConfigHelper.GetAppSetting("AwsSnsProfileName", "labcorp-connector");
+            txtSnsAccessKey.Text = ConfigHelper.GetAppSetting("AwsSnsAccessKey", string.Empty);
+            txtSnsSecretKey.Text = ConfigHelper.GetAppSetting("AwsSnsSecretKey", string.Empty);
+            txtSnsRegion.Text = ConfigHelper.GetAppSetting("AwsSnsRegion", "us-east-1");
+            txtSnsTopicArn.Text = ConfigHelper.GetAppSetting(
+                "AwsSnsTopicArn",
+                "arn:aws:sns:us-east-1:763216446258:labcorpembark-receiving-topic-dev");
+            txtSnsMessage.Text = ConfigHelper.GetAppSetting("AwsSnsDefaultMessage", "preflig");
+        }
+
+        private void BindSnsResult(AwsSnsPublishResult result)
+        {
+            propertyGridUser.SelectedObject = result;
+            propertyGridUser.Refresh();
+
+            var rows = new[]
+            {
+                new PropertyValueRow { Property = "MessageId", Value = result.MessageId },
+                new PropertyValueRow { Property = "SequenceNumber", Value = result.SequenceNumber ?? string.Empty },
+                new PropertyValueRow { Property = "HttpStatusCode", Value = result.HttpStatusCode },
+                new PropertyValueRow { Property = "ProfileName", Value = result.ProfileName },
+                new PropertyValueRow { Property = "Region", Value = result.Region },
+                new PropertyValueRow { Property = "TopicArn", Value = result.TopicArn }
+            };
+
+            dgvAwsProperties.DataSource = new BindingList<PropertyValueRow>(rows.ToList());
         }
 
         private void btnCreateUser_Click(object sender, EventArgs e)
@@ -198,6 +231,49 @@ namespace ApiTestConsole
             }
 
             return id;
+        }
+
+        private void btnSnsPublish_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                _logger.Info("UI: SNS Publish button clicked.");
+                UseWaitCursor = true;
+                btnSnsPublish.Enabled = false;
+
+                // Local variables passed from UI to setup AWS profile credentials
+                var profileName = txtSnsProfile.Text.Trim();
+                var accessKey = txtSnsAccessKey.Text.Trim();
+                var secretKey = txtSnsSecretKey.Text.Trim();
+                var region = txtSnsRegion.Text.Trim();
+                var topicArn = txtSnsTopicArn.Text.Trim();
+                var message = txtSnsMessage.Text;
+
+                var result = _awsSnsClient.PublishMessage(
+                    profileName,
+                    accessKey,
+                    secretKey,
+                    region,
+                    topicArn,
+                    message);
+
+                BindSnsResult(result);
+                lblSnsStatus.Text = string.Format("Published. MessageId={0}", result.MessageId);
+                lblSnsStatus.ForeColor = Color.DarkGreen;
+                _logger.Info(string.Format("UI: SNS publish completed. MessageId={0}.", result.MessageId));
+            }
+            catch (Exception ex)
+            {
+                lblSnsStatus.Text = "SNS publish failed";
+                lblSnsStatus.ForeColor = Color.DarkRed;
+                _logger.Error("UI: SNS publish failed.", ex);
+                MessageBox.Show(ex.Message, "SNS Publish Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                UseWaitCursor = false;
+                btnSnsPublish.Enabled = true;
+            }
         }
     }
 }

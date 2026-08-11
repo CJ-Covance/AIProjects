@@ -81,6 +81,33 @@ The **AWS API (IMP)** tab:
 
 The **User API** tab exercises CRUD against the local Web API and displays results in a **PropertyGrid**.
 
+## AWS SNS Publish tab
+
+New **AWS SNS Publish** tab mirrors the CLI command:
+
+```bash
+aws sns publish --profile labcorp-connector --region us-east-1 \
+  --topic-arn arn:aws:sns:us-east-1:763216446258:labcorpembark-receiving-topic-dev \
+  --message "preflig"
+```
+
+**UI fields (local variables for profile setup):**
+
+| Field | Purpose |
+|-------|---------|
+| Profile Name | Logical profile label (e.g. `labcorp-connector`) |
+| Access Key | AWS access key ID for credential setup |
+| Secret Key | AWS secret access key (masked in UI) |
+| Region | e.g. `us-east-1` |
+| Topic ARN | SNS topic ARN |
+| Message | Message body to publish |
+
+On success, **MessageId** and related properties appear in the Property/Value grid (same as CLI JSON output).
+
+Defaults are loaded from `ApiTestConsole/App.config` (`AwsSnsProfileName`, `AwsSnsRegion`, etc.). Enter **Access Key** and **Secret Key** in the UI — do not commit real credentials.
+
+**NuGet packages required:** `AWSSDK.Core`, `AWSSDK.SimpleNotificationService` (restore packages before build).
+
 ## OOP Principles Applied
 
 | Principle | Implementation |
