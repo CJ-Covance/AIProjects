@@ -83,7 +83,8 @@ namespace ApiTestConsole
                 new PropertyValueRow { Property = "HttpStatusCode", Value = result.HttpStatusCode },
                 new PropertyValueRow { Property = "ProfileName", Value = result.ProfileName },
                 new PropertyValueRow { Property = "Region", Value = result.Region },
-                new PropertyValueRow { Property = "TopicArn", Value = result.TopicArn }
+                new PropertyValueRow { Property = "TopicArn", Value = result.TopicArn },
+                new PropertyValueRow { Property = "CredentialSource", Value = result.CredentialSource ?? string.Empty }
             };
 
             dgvAwsProperties.DataSource = new BindingList<PropertyValueRow>(rows.ToList());
@@ -245,6 +246,7 @@ namespace ApiTestConsole
                 var profileName = txtSnsProfile.Text.Trim();
                 var accessKey = txtSnsAccessKey.Text.Trim();
                 var secretKey = txtSnsSecretKey.Text.Trim();
+                var sessionToken = txtSnsSessionToken.Text.Trim();
                 var region = txtSnsRegion.Text.Trim();
                 var topicArn = txtSnsTopicArn.Text.Trim();
                 var message = txtSnsMessage.Text;
@@ -253,6 +255,7 @@ namespace ApiTestConsole
                     profileName,
                     accessKey,
                     secretKey,
+                    sessionToken,
                     region,
                     topicArn,
                     message);

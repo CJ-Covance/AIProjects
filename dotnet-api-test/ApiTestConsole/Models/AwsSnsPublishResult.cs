@@ -11,5 +11,6 @@ namespace ApiTestConsole.Models
         public string ProfileName { get; set; }
         public string Region { get; set; }
         public string TopicArn { get; set; }
+        public string CredentialSource { get; set; }
     }
 }

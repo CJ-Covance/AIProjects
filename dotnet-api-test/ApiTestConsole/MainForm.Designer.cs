@@ -34,6 +34,8 @@ namespace ApiTestConsole
         private System.Windows.Forms.TextBox txtSnsAccessKey;
         private System.Windows.Forms.Label lblSnsSecretKey;
         private System.Windows.Forms.TextBox txtSnsSecretKey;
+        private System.Windows.Forms.Label lblSnsSessionToken;
+        private System.Windows.Forms.TextBox txtSnsSessionToken;
         private System.Windows.Forms.Label lblSnsRegion;
         private System.Windows.Forms.TextBox txtSnsRegion;
         private System.Windows.Forms.Label lblSnsTopicArn;
@@ -91,6 +93,8 @@ namespace ApiTestConsole
             this.lblSnsRegion = new System.Windows.Forms.Label();
             this.txtSnsSecretKey = new System.Windows.Forms.TextBox();
             this.lblSnsSecretKey = new System.Windows.Forms.Label();
+            this.lblSnsSessionToken = new System.Windows.Forms.Label();
+            this.txtSnsSessionToken = new System.Windows.Forms.TextBox();
             this.txtSnsAccessKey = new System.Windows.Forms.TextBox();
             this.lblSnsAccessKey = new System.Windows.Forms.Label();
             this.txtSnsProfile = new System.Windows.Forms.TextBox();
@@ -401,6 +405,8 @@ namespace ApiTestConsole
             this.grpSnsProfile.Controls.Add(this.lblSnsTopicArn);
             this.grpSnsProfile.Controls.Add(this.txtSnsRegion);
             this.grpSnsProfile.Controls.Add(this.lblSnsRegion);
+            this.grpSnsProfile.Controls.Add(this.txtSnsSessionToken);
+            this.grpSnsProfile.Controls.Add(this.lblSnsSessionToken);
             this.grpSnsProfile.Controls.Add(this.txtSnsSecretKey);
             this.grpSnsProfile.Controls.Add(this.lblSnsSecretKey);
             this.grpSnsProfile.Controls.Add(this.txtSnsAccessKey);
@@ -413,7 +419,7 @@ namespace ApiTestConsole
             this.grpSnsProfile.Size = new System.Drawing.Size(366, 540);
             this.grpSnsProfile.TabIndex = 0;
             this.grpSnsProfile.TabStop = false;
-            this.grpSnsProfile.Text = "AWS Profile && Credentials";
+            this.grpSnsProfile.Text = "AWS Profile && Credentials (leave keys empty to use CLI profile file)";
             // 
             // txtSnsMessage
             // 
@@ -473,6 +479,24 @@ namespace ApiTestConsole
             this.txtSnsSecretKey.Size = new System.Drawing.Size(220, 29);
             this.txtSnsSecretKey.TabIndex = 5;
             this.txtSnsSecretKey.UseSystemPasswordChar = true;
+            // 
+            // lblSnsSessionToken
+            // 
+            this.lblSnsSessionToken.AutoSize = true;
+            this.lblSnsSessionToken.Location = new System.Drawing.Point(16, 255);
+            this.lblSnsSessionToken.Name = "lblSnsSessionToken";
+            this.lblSnsSessionToken.Size = new System.Drawing.Size(122, 24);
+            this.lblSnsSessionToken.TabIndex = 12;
+            this.lblSnsSessionToken.Text = "Session Token";
+            // 
+            // txtSnsSessionToken
+            // 
+            this.txtSnsSessionToken.Location = new System.Drawing.Point(120, 252);
+            this.txtSnsSessionToken.Name = "txtSnsSessionToken";
+            this.txtSnsSessionToken.PasswordChar = '*';
+            this.txtSnsSessionToken.Size = new System.Drawing.Size(220, 29);
+            this.txtSnsSessionToken.TabIndex = 6;
+            this.txtSnsSessionToken.UseSystemPasswordChar = true;
             // 
             // lblSnsSecretKey
             // 

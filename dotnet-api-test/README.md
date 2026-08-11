@@ -108,6 +108,24 @@ Defaults are loaded from `ApiTestConsole/App.config` (`AwsSnsProfileName`, `AwsS
 
 **NuGet packages required:** `AWSSDK.Core`, `AWSSDK.SimpleNotificationService` (restore packages before build).
 
+### SNS troubleshooting (`HttpErrorResponseException`)
+
+If CLI works (`aws sns publish --profile labcorp-connector ...`) but the app fails:
+
+1. **Leave Access Key and Secret Key empty** — the app will load profile `labcorp-connector` from `%USERPROFILE%\.aws\credentials` (same as CLI).
+2. **Temporary credentials** — if you paste keys manually, also paste **Session Token** (required for STS/SSO/temporary keys).
+3. **Check the error dialog** — it now shows `ErrorCode`, `HTTP Status`, and `RequestId` from AWS.
+4. **Region must match topic ARN** — topic is in `us-east-1`, so Region must be `us-east-1`.
+5. **IAM** — profile must have `sns:Publish` on `arn:aws:sns:us-east-1:763216446258:labcorpembark-receiving-topic-dev`.
+
+| AWS ErrorCode | Typical cause |
+|---------------|---------------|
+| `AccessDenied` / `NotAuthorized` | Missing `sns:Publish` permission |
+| `InvalidClientTokenId` | Wrong access key |
+| `SignatureDoesNotMatch` | Wrong secret key |
+| `ExpiredToken` | Session token expired — refresh creds or use CLI profile file |
+| `OptInRequired` | SNS not enabled for account/region |
+
 ## OOP Principles Applied
 
 | Principle | Implementation |
