@@ -91,40 +91,35 @@ aws sns publish --profile labcorp-connector --region us-east-1 \
   --message "preflig"
 ```
 
-**UI fields (local variables for profile setup):**
+**AWS CLI config folder** (default `C:\Users\Jainc1\.aws`):
 
-| Field | Purpose |
-|-------|---------|
-| Profile Name | Logical profile label (e.g. `labcorp-connector`) |
-| Access Key | AWS access key ID for credential setup |
-| Secret Key | AWS secret access key (masked in UI) |
-| Region | e.g. `us-east-1` |
-| Topic ARN | SNS topic ARN |
-| Message | Message body to publish |
+| File | Purpose |
+|------|---------|
+| `.aws\config` | Profile settings, assume-role, region |
+| `.aws\credentials` | Access keys per profile |
 
-On success, **MessageId** and related properties appear in the Property/Value grid (same as CLI JSON output).
+**Recommended workflow:**
 
-Defaults are loaded from `ApiTestConsole/App.config` (`AwsSnsProfileName`, `AwsSnsRegion`, etc.). Enter **Access Key** and **Secret Key** in the UI — do not commit real credentials.
+1. Confirm **Config Folder** = `C:\Users\Jainc1\.aws` with green **config: found** / **credentials: found**
+2. Keep **Use AWS CLI profile from .aws folder** checked
+3. **Profile Name** = `labcorp-connector`
+4. Click **Verify Profile** (`aws sts get-caller-identity` equivalent)
+5. Click **SNS Publish**
 
-**NuGet packages required:** `AWSSDK.Core`, `AWSSDK.SimpleNotificationService` (restore packages before build).
+Uncheck the profile checkbox only to paste Access Key / Secret Key / Session Token manually.
 
-### SNS troubleshooting (`HttpErrorResponseException`)
+On success, **MessageId** appears in the Property/Value grid (same as CLI JSON output).
 
-If CLI works (`aws sns publish --profile labcorp-connector ...`) but the app fails:
+**NuGet packages required:** `AWSSDK.Core`, `AWSSDK.SimpleNotificationService`, `AWSSDK.SecurityToken` (restore packages before build).
 
-1. **Leave Access Key and Secret Key empty** — the app will load profile `labcorp-connector` from `%USERPROFILE%\.aws\credentials` (same as CLI).
-2. **Temporary credentials** — if you paste keys manually, also paste **Session Token** (required for STS/SSO/temporary keys).
-3. **Check the error dialog** — it now shows `ErrorCode`, `HTTP Status`, and `RequestId` from AWS.
-4. **Region must match topic ARN** — topic is in `us-east-1`, so Region must be `us-east-1`.
-5. **IAM** — profile must have `sns:Publish` on `arn:aws:sns:us-east-1:763216446258:labcorpembark-receiving-topic-dev`.
+### SNS troubleshooting
 
 | AWS ErrorCode | Typical cause |
 |---------------|---------------|
 | `AccessDenied` / `NotAuthorized` | Missing `sns:Publish` permission |
-| `InvalidClientTokenId` | Wrong access key |
-| `SignatureDoesNotMatch` | Wrong secret key |
-| `ExpiredToken` | Session token expired — refresh creds or use CLI profile file |
-| `OptInRequired` | SNS not enabled for account/region |
+| `InvalidClientTokenId` | Wrong access key or profile not loaded |
+| `ExpiredToken` | Refresh CLI credentials (`aws sso login` if SSO profile) |
+| Profile not found | Check profile name in `.aws\config` and `.aws\credentials` |
 
 ## OOP Principles Applied
 
