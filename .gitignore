@@ -21,3 +21,10 @@ frontend/.env.local
 # OS
 .DS_Store
 Thumbs.db
+
+# .NET Jira importer secrets
+JiraTestDataImporter/appsettings.json
+JiraTestDataImporter/**/bin/
+JiraTestDataImporter/**/obj/
+JiraTestDataImporter/JiraTestDataImporter.Tests/test-appsettings.json
+JiraTestDataImporter/JiraTestDataImporter.Tests/missing-token.json
