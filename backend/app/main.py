@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import Base, engine
-from app.routers import domains, pages, projects, search, sources
+from app.routers import domains, jira, pages, projects, search, sources
 
 
 @asynccontextmanager
@@ -35,6 +35,7 @@ app.include_router(domains.router)
 app.include_router(projects.router)
 app.include_router(pages.router)
 app.include_router(search.router)
+app.include_router(jira.router)
 
 
 @app.get("/api/health")
@@ -42,4 +43,5 @@ def health():
     return {
         "status": "ok",
         "openai_configured": bool(settings.openai_api_key),
+        "jira_configured": settings.jira_configured,
     }
