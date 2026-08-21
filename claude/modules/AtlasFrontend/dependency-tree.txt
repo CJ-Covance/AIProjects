@@ -1,0 +1,30 @@
+AtlasFrontend dependency tree
+=============================
+
+app/layout.tsx
+├── next/font Inter
+├── components/Navbar
+│   └── next/link + usePathname
+└── children pages
+
+app/page.tsx (Ask)
+├── lib/api (health, search, list sources/domains/projects)
+├── lib/types
+├── components/ScopeFilters
+├── components/AnswerDisplay
+└── components/CitationPanel
+
+app/browse/page.tsx
+├── lib/api.getHierarchy
+├── local TreeNode
+└── Link to /?project=... (Ask does not yet read this)
+
+app/manage/page.tsx
+├── lib/api CRUD for all entities
+└── local EntityList + modal form state
+
+lib/api.ts
+└── fetch → NEXT_PUBLIC_API_URL (Atlas backend)
+
+Styling:
+globals.css + Tailwind theme colors (atlas-*)

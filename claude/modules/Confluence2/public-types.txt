@@ -1,0 +1,5 @@
+# Confluence2 — Public types
+
+Authoritative contracts live in `confluence2/lib/api-spec` (OpenAPI) and generated Zod/TS clients under `lib/api-client`.
+
+Re-read those packages before any Confluence2 change. Do not mirror types into Atlas `lib/types.ts`.

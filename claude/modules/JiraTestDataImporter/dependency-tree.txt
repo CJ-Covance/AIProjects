@@ -1,0 +1,11 @@
+JiraTestDataImporter
+====================
+
+Program.cs
+├── Configuration (appsettings + env overrides)
+├── Services (import orchestration)
+│   ├── Jira/IJiraClient
+│   └── Database/IDatabaseRepository
+└── Logging
+
+Tests: JiraTestDataImporter.Tests (mocked ports)
