@@ -1,0 +1,11 @@
+Confluence2 (sibling) — high-level deps
+=======================================
+
+artifacts/confluence2 (Vite React)
+└── lib/api-client (Zod) ← codegen from lib/api-spec
+    └── artifacts/api-server (Express)
+        ├── lib/db (Drizzle / Postgres FTS)
+        ├── lib/integrations-gemini-ai
+        └── Replit Auth / OIDC
+
+Not connected to Atlas docker-compose.

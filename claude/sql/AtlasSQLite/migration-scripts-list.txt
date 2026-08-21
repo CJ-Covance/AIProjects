@@ -1,0 +1,10 @@
+Atlas SQLite — migration scripts
+================================
+
+(none checked in)
+
+Schema is created via SQLAlchemy metadata.create_all only.
+
+If/when migrations are added, list them here (path + purpose), e.g.:
+- backend/migrations/versions/xxxx_description.py — Alembic revision ...
+- backend/scripts/upgrade_YYYYMMDD_add_column.sql — one-off ...

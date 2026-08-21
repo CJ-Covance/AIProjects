@@ -1,0 +1,6 @@
+Atlas SQLite — stored procedures
+================================
+
+(none)
+
+Atlas does not use stored procedures. All data access is SQLAlchemy ORM from FastAPI routers/services.
