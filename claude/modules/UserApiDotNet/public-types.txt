@@ -1,0 +1,3 @@
+# UserApiDotNet — Public types
+
+See `UserApi.Core/DTOs` and `UserApi.Core/Contracts`. Web controllers should depend on Core contracts, not Infrastructure concretes (Unity composition root wires implementations).

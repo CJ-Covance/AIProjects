@@ -1,0 +1,5 @@
+# JiraTestDataImporter — Public types
+
+See `JiraTestDataImporter/Models/` and configuration POCOs in `Configuration/`.
+
+Primary concepts: Jira issue DTOs, import batch results, app settings (Jira base URL, JQL, SQL connection, DryRun).

@@ -1,0 +1,28 @@
+# AtlasFrontend — Public types
+
+Source: `frontend/src/lib/types.ts` (+ local Manage form types in page).
+
+## Entities
+- Source: id, name, description?, domain_count, page_count, created_at, updated_at
+- Domain: id, source_id, name, description?, project_count, page_count, created_at, updated_at
+- Project: id, domain_id, name, description?, page_count, created_at, updated_at
+- WebPage: id, project_id, title, content, url?, chunk_count, created_at, updated_at
+
+## Hierarchy
+- HierarchyNode: id, name, type ("source"|"domain"|"project"), description?, page_count, children[]
+
+## Search
+- SearchFilters: source_id?, domain_id?, project_id?
+- Citation: index, web_page_id, title, url?, snippet, source_name, domain_name, project_name, updated_at
+- SearchResponse: answer, citations[], confidence ("high"|"medium"|"low"|"none"), found_relevant
+
+## API surface (lib/api.ts)
+- health()
+- getHierarchy()
+- search(question, filters?)
+- sources: list/create/update/delete
+- domains: list(?source_id)/create/update/delete
+- projects: list(?domain_id)/create/update/delete
+- pages: list(?project_id)/get/create/update/delete
+
+Note: `getPage` is defined but unused by current pages.

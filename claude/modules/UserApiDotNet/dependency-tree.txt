@@ -1,0 +1,8 @@
+UserApiDotNet
+=============
+
+UserApi.Web (ASP.NET Web API 2)
+└── UserApi.Core (contracts, DTOs, models)
+    └── UserApi.Infrastructure (repos, services, AES, logging)
+
+ApiTestConsole (WinForms) — separate AWS API tester client

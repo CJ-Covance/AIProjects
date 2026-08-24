@@ -1,0 +1,54 @@
+# AtlasBackend — Public types (API DTOs)
+
+Source: `backend/app/schemas.py` (authoritative). Field lists are logical; always re-read the file before coding.
+
+## Hierarchy entities
+
+### Source
+- SourceBase: name, description?
+- SourceCreate: SourceBase
+- SourceUpdate: name?, description?
+- SourceOut: + id, created_at, updated_at, domain_count, page_count
+
+### Domain
+- DomainBase: name, description?
+- DomainCreate: + source_id
+- DomainUpdate: name?, description?
+- DomainOut: + id, source_id, created_at, updated_at, project_count, page_count
+
+### Project
+- ProjectBase: name, description?
+- ProjectCreate: + domain_id
+- ProjectUpdate: name?, description?
+- ProjectOut: + id, domain_id, created_at, updated_at, page_count
+
+### WebPage
+- WebPageBase: title, content?, url?
+- WebPageCreate: + project_id
+- WebPageUpdate: title?, content?, url?
+- WebPageOut: + id, project_id, created_at, updated_at, chunk_count
+
+## Tree & search
+
+### HierarchyNode
+- id, name, type: "source" | "domain" | "project"
+- description?, page_count, children: HierarchyNode[]
+
+### SearchRequest
+- question (required)
+- source_id?, domain_id?, project_id?
+
+### Citation
+- index, web_page_id, title, url?, snippet
+- source_name, domain_name, project_name, updated_at
+
+### SearchResponse
+- answer, citations[], confidence: "high" | "medium" | "low" | "none"
+- found_relevant: bool
+
+## Health (inline, not in schemas.py)
+- { status: "ok", openai_configured: bool }
+
+## Internal (not public API)
+- ORM: Source, Domain, Project, WebPage, Chunk
+- Chunk.embedding JSON string — never returned from REST today

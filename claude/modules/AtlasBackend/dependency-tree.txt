@@ -1,0 +1,37 @@
+AtlasBackend dependency tree
+============================
+
+main.py
+├── config.settings
+├── database.Base, engine
+├── routers.sources
+│   ├── database.get_db
+│   ├── models.Source, Domain, Project, WebPage
+│   └── schemas.Source*
+├── routers.domains
+│   ├── models.Domain, Source, Project, WebPage
+│   └── schemas.Domain*
+├── routers.projects
+│   ├── models.Project, Domain, WebPage
+│   └── schemas.Project*
+├── routers.pages
+│   ├── models.WebPage, Project, Chunk
+│   ├── schemas.WebPage*
+│   └── services.indexer.index_web_page
+│         ├── services.embeddings.embed_texts
+│         │     └── openai (+ settings)
+│         └── models.Chunk (+ hierarchy join for denormalized ids)
+└── routers.search
+    ├── GET hierarchy → models Source/Domain/Project/WebPage counts
+    └── POST search → services.rag.generate_answer
+          ├── services.embeddings.embed_texts / cosine helpers
+          ├── models.Chunk (+ page/hierarchy for citations)
+          └── openai chat (+ settings)
+
+seed_data.py
+└── creates hierarchy + optional index_web_page per page
+
+External:
+- OpenAI Embeddings API
+- OpenAI Chat Completions API
+- SQLite file via SQLAlchemy
