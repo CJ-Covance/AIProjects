@@ -33,7 +33,8 @@ FROM (
         (N'NG0029', N'REPORT_TSV', N'sampleID.report.tsv',                         N'{ClientSampleID}.report.tsv',                    1),
         (N'NG0029', N'PED',        N'sampleID.ped',                                N'{ClientSampleID}.ped',                           2),
         (N'NG0029', N'IDAT_RED',   N'sentrixbarcode_sentrixposition_Red.idat',     N'{SentrixBarcode}_{SentrixPosition}_Red.idat',    3),
-        (N'NG0029', N'IDAT_GRN',   N'sentrixbarcode_sentrixposition_Grn.idat',     N'{SentrixBarcode}_{SentrixPosition}_Grn.idat',    4)
+        (N'NG0029', N'IDAT_GRN',   N'sentrixbarcode_sentrixposition_Grn.idat',     N'{SentrixBarcode}_{SentrixPosition}_Grn.idat',    4),
+        (N'NG0029', N'JSONFile',   N'sampleID.json',                               N'{ClientSampleID}.json',                          5)
 ) AS src (ClientID, FileTypeCode, FileDescription, FileNamePattern, DisplaySequence)
 WHERE NOT EXISTS (
     SELECT 1

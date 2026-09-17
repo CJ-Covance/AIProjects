@@ -174,6 +174,18 @@ VALUES
     N'system',
     GETDATE(),
     N'system'
+),
+(
+    N'NG0029',
+    N'JSONFile',
+    N'sampleID.json',
+    N'{ClientSampleID}.json',
+    5,
+    1,
+    GETDATE(),
+    N'system',
+    GETDATE(),
+    N'system'
 );
 GO
 
@@ -221,7 +233,7 @@ AS
         CAST(
             CASE
                 WHEN MIN(CAST(l.FileExists AS INT)) = 1
-                 AND COUNT(*) = 4
+                 AND COUNT(*) = 5
                 THEN 1
                 ELSE 0
             END AS BIT
