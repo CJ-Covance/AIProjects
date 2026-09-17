@@ -1,13 +1,9 @@
 /*
-    INSERT scripts for dbo.PGSResultsFileProcessingSampleFileTransferLog
+    INSERT scripts for client-driven file existence log.
 
-    Required:
-      - FileProcessingDetailID must exist in dbo.PGSResultsFileProcessingDetails (FK)
-      - One row per FileProcessingDetailID (unique constraint)
-      - BIT flags: 1 = file exists, 0 = file does not exist
-      - CreatedBy / UpdatedBy are required (NVARCHAR(22))
-
-    Do not insert ClientSampleID or CompositeID; those come from the parent via FK.
+    1) Catalog: dbo.PGSClientRequiredFileType  (NG0029 seeded in table script)
+    2) Log:     dbo.PGSResultsFileProcessingSampleFileTransferLog
+                one row per required file type for the sample (FK to catalog)
 */
 
 SET ANSI_NULLS ON;
@@ -15,74 +11,52 @@ SET QUOTED_IDENTIFIER ON;
 GO
 
 /* --------------------------------------------------------------------------
-   1. Single-row insert (replace parameter values)
+   1. Ensure NG0029 required files exist (safe to re-run)
    -------------------------------------------------------------------------- */
-DECLARE @FileProcessingDetailID INT          = 1;          -- existing PK from Details
-DECLARE @HasReportTsvFile       BIT          = 1;          -- a. sampleID.report.tsv
-DECLARE @HasPedFile             BIT          = 1;          -- b. sampleID.ped
-DECLARE @HasRedIdatFile         BIT          = 1;          -- c. *_Red.idat
-DECLARE @HasGrnIdatFile         BIT          = 0;          -- d. *_Grn.idat
-DECLARE @UserId                 NVARCHAR(22) = N'system';
-DECLARE @Now                    DATETIME     = GETDATE();
-
-IF NOT EXISTS (
-    SELECT 1
-    FROM dbo.PGSResultsFileProcessingDetails AS d
-    WHERE d.FileProcessingDetailID = @FileProcessingDetailID
+INSERT INTO dbo.PGSClientRequiredFileType
+(
+    ClientID,
+    FileTypeCode,
+    FileDescription,
+    FileNamePattern,
+    DisplaySequence,
+    IsActive,
+    CreatedDate,
+    CreatedBy,
+    UpdatedDate,
+    UpdatedBy
 )
-BEGIN
-    RAISERROR(N'FileProcessingDetailID %d does not exist in PGSResultsFileProcessingDetails.', 16, 1, @FileProcessingDetailID);
-END
-ELSE IF EXISTS (
-    SELECT 1
-    FROM dbo.PGSResultsFileProcessingSampleFileTransferLog AS l
-    WHERE l.FileProcessingDetailID = @FileProcessingDetailID
-)
-BEGIN
-    RAISERROR(N'A log row already exists for FileProcessingDetailID %d. Use UPDATE instead of INSERT.', 16, 1, @FileProcessingDetailID);
-END
-ELSE
-BEGIN
-    INSERT INTO dbo.PGSResultsFileProcessingSampleFileTransferLog
-    (
-        FileProcessingDetailID,
-        HasReportTsvFile,
-        HasPedFile,
-        HasRedIdatFile,
-        HasGrnIdatFile,
-        CreatedDate,
-        CreatedBy,
-        UpdatedDate,
-        UpdatedBy
-    )
+SELECT src.ClientID, src.FileTypeCode, src.FileDescription, src.FileNamePattern,
+       src.DisplaySequence, 1, GETDATE(), N'system', GETDATE(), N'system'
+FROM (
     VALUES
-    (
-        @FileProcessingDetailID,
-        @HasReportTsvFile,
-        @HasPedFile,
-        @HasRedIdatFile,
-        @HasGrnIdatFile,
-        @Now,
-        @UserId,
-        @Now,
-        @UserId
-    );
-
-    SELECT SCOPE_IDENTITY() AS SampleFileTransferLogID;
-END;
+        (N'NG0029', N'REPORT_TSV', N'sampleID.report.tsv',                         N'{ClientSampleID}.report.tsv',                    1),
+        (N'NG0029', N'PED',        N'sampleID.ped',                                N'{ClientSampleID}.ped',                           2),
+        (N'NG0029', N'IDAT_RED',   N'sentrixbarcode_sentrixposition_Red.idat',     N'{SentrixBarcode}_{SentrixPosition}_Red.idat',    3),
+        (N'NG0029', N'IDAT_GRN',   N'sentrixbarcode_sentrixposition_Grn.idat',     N'{SentrixBarcode}_{SentrixPosition}_Grn.idat',    4)
+) AS src (ClientID, FileTypeCode, FileDescription, FileNamePattern, DisplaySequence)
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM dbo.PGSClientRequiredFileType AS ft
+    WHERE ft.ClientID = src.ClientID
+      AND ft.FileTypeCode = src.FileTypeCode
+);
 GO
 
 /* --------------------------------------------------------------------------
-   2. Literal insert example (uncomment and set FileProcessingDetailID)
+   2. Insert log rows for one sample using NG0029 file types (dynamic)
+      Replace @FileProcessingDetailID with an existing Details PK.
    -------------------------------------------------------------------------- */
-/*
+DECLARE @FileProcessingDetailID INT          = 1;
+DECLARE @ClientID               NVARCHAR(20) = N'NG0029';
+DECLARE @UserId                 NVARCHAR(22) = N'system';
+DECLARE @Now                    DATETIME     = GETDATE();
+
 INSERT INTO dbo.PGSResultsFileProcessingSampleFileTransferLog
 (
     FileProcessingDetailID,
-    HasReportTsvFile,
-    HasPedFile,
-    HasRedIdatFile,
-    HasGrnIdatFile,
+    ClientRequiredFileTypeID,
+    FileExists,
     CreatedDate,
     CreatedBy,
     UpdatedDate,
@@ -90,35 +64,63 @@ INSERT INTO dbo.PGSResultsFileProcessingSampleFileTransferLog
 )
 SELECT
     d.FileProcessingDetailID,
-    1,  -- HasReportTsvFile
-    1,  -- HasPedFile
-    1,  -- HasRedIdatFile
-    1,  -- HasGrnIdatFile
-    GETDATE(),
-    N'system',
-    GETDATE(),
-    N'system'
+    ft.ClientRequiredFileTypeID,
+    0,
+    @Now,
+    @UserId,
+    @Now,
+    @UserId
 FROM dbo.PGSResultsFileProcessingDetails AS d
-WHERE d.FileProcessingDetailID = 1
+INNER JOIN dbo.PGSClientRequiredFileType AS ft
+    ON ft.ClientID = @ClientID
+   AND ft.IsActive = 1
+WHERE d.FileProcessingDetailID = @FileProcessingDetailID
   AND NOT EXISTS (
         SELECT 1
         FROM dbo.PGSResultsFileProcessingSampleFileTransferLog AS l
         WHERE l.FileProcessingDetailID = d.FileProcessingDetailID
+          AND l.ClientRequiredFileTypeID = ft.ClientRequiredFileTypeID
       );
 GO
-*/
 
 /* --------------------------------------------------------------------------
-   3. Bulk insert for eligible samples that do not yet have a log row
-      (all four existence flags default to 0 until the scan updates them)
+   3. Set existence flags for an NG0029 sample (example)
    -------------------------------------------------------------------------- */
+DECLARE @FileProcessingDetailID INT          = 1;
+DECLARE @ClientID               NVARCHAR(20) = N'NG0029';
+DECLARE @UserId                 NVARCHAR(22) = N'system';
+DECLARE @Now                    DATETIME     = GETDATE();
+
+UPDATE l
+SET
+    l.FileExists  = CASE ft.FileTypeCode
+                        WHEN N'REPORT_TSV' THEN 1
+                        WHEN N'PED'        THEN 1
+                        WHEN N'IDAT_RED'   THEN 1
+                        WHEN N'IDAT_GRN'   THEN 0
+                        ELSE l.FileExists
+                    END,
+    l.UpdatedDate = @Now,
+    l.UpdatedBy   = @UserId
+FROM dbo.PGSResultsFileProcessingSampleFileTransferLog AS l
+INNER JOIN dbo.PGSClientRequiredFileType AS ft
+    ON ft.ClientRequiredFileTypeID = l.ClientRequiredFileTypeID
+WHERE l.FileProcessingDetailID = @FileProcessingDetailID
+  AND ft.ClientID = @ClientID;
+GO
+
+/* --------------------------------------------------------------------------
+   4. Bulk initialize log rows for eligible samples (client NG0029)
+   -------------------------------------------------------------------------- */
+DECLARE @ClientID NVARCHAR(20) = N'NG0029';
+DECLARE @UserId   NVARCHAR(22) = N'system';
+DECLARE @Now      DATETIME     = GETDATE();
+
 INSERT INTO dbo.PGSResultsFileProcessingSampleFileTransferLog
 (
     FileProcessingDetailID,
-    HasReportTsvFile,
-    HasPedFile,
-    HasRedIdatFile,
-    HasGrnIdatFile,
+    ClientRequiredFileTypeID,
+    FileExists,
     CreatedDate,
     CreatedBy,
     UpdatedDate,
@@ -126,57 +128,40 @@ INSERT INTO dbo.PGSResultsFileProcessingSampleFileTransferLog
 )
 SELECT
     d.FileProcessingDetailID,
+    ft.ClientRequiredFileTypeID,
     0,
-    0,
-    0,
-    0,
-    GETDATE(),
-    N'system',
-    GETDATE(),
-    N'system'
+    @Now,
+    @UserId,
+    @Now,
+    @UserId
 FROM dbo.PGSResultsFileProcessingDetails AS d
+INNER JOIN dbo.PGSClientRequiredFileType AS ft
+    ON ft.ClientID = @ClientID
+   AND ft.IsActive = 1
 WHERE d.IsEligibleToTransfer = 1
   AND ISNULL(d.IsFileTransferred, 0) = 0
   AND NOT EXISTS (
         SELECT 1
         FROM dbo.PGSResultsFileProcessingSampleFileTransferLog AS l
         WHERE l.FileProcessingDetailID = d.FileProcessingDetailID
+          AND l.ClientRequiredFileTypeID = ft.ClientRequiredFileTypeID
       );
 GO
 
 /* --------------------------------------------------------------------------
-   4. Update existing log row (use when unique FK already has a row)
+   5. Verify NG0029 (pivoted flags + normalized rows)
    -------------------------------------------------------------------------- */
-/*
-UPDATE l
-SET
-    l.HasReportTsvFile = 1,
-    l.HasPedFile       = 1,
-    l.HasRedIdatFile   = 1,
-    l.HasGrnIdatFile   = 1,
-    l.UpdatedDate      = GETDATE(),
-    l.UpdatedBy        = N'system'
-FROM dbo.PGSResultsFileProcessingSampleFileTransferLog AS l
-WHERE l.FileProcessingDetailID = 1;
-GO
-*/
+SELECT *
+FROM dbo.vw_PGSResultsFileProcessingSampleFileTransferLog_NG0029;
 
-/* --------------------------------------------------------------------------
-   5. Verify
-   -------------------------------------------------------------------------- */
 SELECT
-    l.SampleFileTransferLogID,
-    l.FileProcessingDetailID,
-    d.ClientSampleID,
-    d.CompositeID,
-    l.HasReportTsvFile,
-    l.HasPedFile,
-    l.HasRedIdatFile,
-    l.HasGrnIdatFile,
-    l.CreatedDate,
-    l.CreatedBy
-FROM dbo.PGSResultsFileProcessingSampleFileTransferLog AS l
-INNER JOIN dbo.PGSResultsFileProcessingDetails AS d
-    ON d.FileProcessingDetailID = l.FileProcessingDetailID
-ORDER BY l.SampleFileTransferLogID;
+    v.FileProcessingDetailID,
+    v.ClientSampleID,
+    v.ClientID,
+    v.FileTypeCode,
+    v.FileDescription,
+    v.FileExists
+FROM dbo.vw_PGSResultsFileProcessingSampleFileTransferLog AS v
+WHERE v.ClientID = N'NG0029'
+ORDER BY v.FileProcessingDetailID, v.DisplaySequence;
 GO
