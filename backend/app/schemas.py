@@ -135,3 +135,41 @@ class SearchResponse(BaseModel):
     citations: list[Citation]
     confidence: str
     found_relevant: bool
+
+
+class JiraProject(BaseModel):
+    id: str
+    key: str
+    name: str
+
+
+class JiraIssueType(BaseModel):
+    id: str
+    name: str
+    description: str | None = None
+
+
+class JiraPriority(BaseModel):
+    id: str
+    name: str
+
+
+class JiraStatusResponse(BaseModel):
+    configured: bool
+    connected: bool
+    error: str | None = None
+
+
+class JiraIssueCreate(BaseModel):
+    project_key: str = Field(..., min_length=1, max_length=32)
+    summary: str = Field(..., min_length=1, max_length=255)
+    description: str = Field(default="", max_length=10000)
+    issue_type: str = Field(..., min_length=1, max_length=64)
+    priority: str | None = Field(None, max_length=64)
+    labels: list[str] = Field(default_factory=list)
+
+
+class JiraIssueOut(BaseModel):
+    id: str
+    key: str
+    url: str | None = None

@@ -1,6 +1,11 @@
 import type {
   Domain,
   HierarchyNode,
+  JiraIssue,
+  JiraIssueCreate,
+  JiraIssueType,
+  JiraPriority,
+  JiraProject,
   Project,
   SearchFilters,
   SearchResponse,
@@ -74,4 +79,13 @@ export const api = {
     data: { title?: string; content?: string; url?: string }
   ) => request<WebPage>(`/api/pages/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   deletePage: (id: string) => request<void>(`/api/pages/${id}`, { method: "DELETE" }),
+
+  // Jira
+  jiraStatus: () => request<{ configured: boolean; connected: boolean; error?: string }>("/api/jira/status"),
+  listJiraProjects: () => request<JiraProject[]>("/api/jira/projects"),
+  listJiraIssueTypes: (projectKey: string) =>
+    request<JiraIssueType[]>(`/api/jira/issue-types?project_key=${encodeURIComponent(projectKey)}`),
+  listJiraPriorities: () => request<JiraPriority[]>("/api/jira/priorities"),
+  createJiraIssue: (data: JiraIssueCreate) =>
+    request<JiraIssue>("/api/jira/issues", { method: "POST", body: JSON.stringify(data) }),
 };

@@ -73,3 +73,41 @@ export interface SearchFilters {
   domain_id?: string;
   project_id?: string;
 }
+
+export interface JiraProject {
+  id: string;
+  key: string;
+  name: string;
+}
+
+export interface JiraIssueType {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
+export interface JiraPriority {
+  id: string;
+  name: string;
+}
+
+export interface JiraStatus {
+  configured: boolean;
+  connected: boolean;
+  error?: string | null;
+}
+
+export interface JiraIssueCreate {
+  project_key: string;
+  summary: string;
+  description: string;
+  issue_type: string;
+  priority?: string;
+  labels?: string[];
+}
+
+export interface JiraIssue {
+  id: string;
+  key: string;
+  url: string | null;
+}

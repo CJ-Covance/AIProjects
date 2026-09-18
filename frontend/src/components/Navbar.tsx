@@ -7,6 +7,7 @@ const links = [
   { href: "/", label: "Ask" },
   { href: "/browse", label: "Browse" },
   { href: "/manage", label: "Manage" },
+  { href: "/jira", label: "Jira" },
 ];
 
 export default function Navbar() {

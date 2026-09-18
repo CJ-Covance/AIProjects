@@ -83,6 +83,27 @@ docker compose up --build
 | GET/POST/PUT/DELETE | `/api/domains` | Domain CRUD |
 | GET/POST/PUT/DELETE | `/api/projects` | Project CRUD |
 | GET/POST/PUT/DELETE | `/api/pages` | Web page CRUD (auto-indexes on write) |
+| GET | `/api/jira/status` | Jira connection status |
+| GET | `/api/jira/projects` | List accessible Jira projects |
+| GET | `/api/jira/issue-types` | Issue types for a project |
+| GET | `/api/jira/priorities` | Jira priority levels |
+| POST | `/api/jira/issues` | Create a Jira issue from user input |
+
+### Jira Integration
+
+The **Jira** page (`/jira`) provides a form to create issues in Jira Cloud via the REST API. Credentials are stored server-side only.
+
+1. Create an API token at [Atlassian account settings](https://id.atlassian.com/manage-profile/security/api-tokens).
+2. Set backend environment variables:
+
+```bash
+JIRA_BASE_URL=https://your-domain.atlassian.net
+JIRA_EMAIL=you@example.com
+JIRA_API_TOKEN=your-api-token
+JIRA_DEFAULT_PROJECT_KEY=PROJ   # optional
+```
+
+3. Open [http://localhost:3000/jira](http://localhost:3000/jira), fill in the form, and submit.
 
 ### Search Example
 
@@ -135,6 +156,10 @@ After running `seed_data.py`, try these questions:
 | `CHUNK_SIZE` | `800` | Characters per text chunk |
 | `CHUNK_OVERLAP` | `150` | Overlap between chunks |
 | `TOP_K_CHUNKS` | `8` | Number of chunks retrieved per query |
+| `JIRA_BASE_URL` | — | Jira Cloud site URL (e.g. `https://your-domain.atlassian.net`) |
+| `JIRA_EMAIL` | — | Atlassian account email for API auth |
+| `JIRA_API_TOKEN` | — | Jira API token |
+| `JIRA_DEFAULT_PROJECT_KEY` | — | Optional default project key for issue creation |
 
 ## Future Enhancements
 
@@ -144,7 +169,7 @@ After running `seed_data.py`, try these questions:
 - SSO / OIDC authentication
 - Permission-aware retrieval (ACL filtering)
 - Versioning and audit trails
-- Connector framework for external systems (Confluence, SharePoint, Jira)
+- Connector framework for external systems (Confluence, SharePoint)
 
 ## License
 

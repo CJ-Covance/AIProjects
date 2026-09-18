@@ -11,6 +11,10 @@ services:
       - OPENAI_CHAT_MODEL=gpt-4o-mini
       - DATABASE_URL=sqlite:///./atlas.db
       - CORS_ORIGINS=http://localhost:3000
+      - JIRA_BASE_URL=${JIRA_BASE_URL:-}
+      - JIRA_EMAIL=${JIRA_EMAIL:-}
+      - JIRA_API_TOKEN=${JIRA_API_TOKEN:-}
+      - JIRA_DEFAULT_PROJECT_KEY=${JIRA_DEFAULT_PROJECT_KEY:-}
     volumes:
       - atlas-data:/app/data
     command: >
